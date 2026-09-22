@@ -20,4 +20,4 @@
 
 **Build verification:** Run directly by the orchestrating session (not delegated to Implementer, which has no shell access by design): `./mvnw test -Dtest=OrderServiceImplTest` -> `Tests run: 25, Failures: 0, Errors: 0` -- `BUILD SUCCESS`. Full module suite `./mvnw test` -> `Tests run: 26, Failures: 0, Errors: 0` -- `BUILD SUCCESS`. Diff independently reviewed against the implementer's claimed summary via `git diff` and confirmed scoped to exactly the two named files (other working-tree changes present in the repo at session start are pre-existing line-ending-only diffs in unrelated files, confirmed via `git diff --ignore-all-space`, not touched by this change).
 
-**Not yet done:** change has not been committed -- pending human approval per the CLAUDE.md human-checkpoint requirement.
+**Committed:** `70f81a0` (verified via `git log`/`git show`; `OrderServiceImpl.java` and this decision file were both carried in that commit -- content confirmed identical to the committed blob via `git diff --ignore-all-space`, which shows zero difference beyond line-ending normalization).

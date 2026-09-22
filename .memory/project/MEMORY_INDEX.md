@@ -4,7 +4,7 @@ Last updated: 2026-09-16
 
 ## Active entries
 
-- decisions/decision-005.md — Bounded retry added to OrderServiceImpl's Feign calls: RetryableException branch now retries up to 3 total attempts (200ms fixed backoff) before falling into decision-004's existing WARN/503 handling; FeignException/NotFound branches untouched. Human-approved retry count/backoff. Recorded 2026-09-16. Review by 2026-12-15. Not yet committed.
+- decisions/decision-005.md — Bounded retry added to OrderServiceImpl's Feign calls: RetryableException branch now retries up to 3 total attempts (200ms fixed backoff) before falling into decision-004's existing WARN/503 handling; FeignException/NotFound branches untouched. Human-approved retry count/backoff. Recorded 2026-09-16. Review by 2026-12-15. Committed in 70f81a0.
 - decisions/decision-001.md — Feign call failures converted to ResponseStatusException with appropriate HTTP status (503/404). Superseded in part by decision-004.md, which narrows the 503 "unreachable" branch to real RetryableException cases only. Review by: [90 days from decision-001's date].
 - decisions/decision-002.md — API connection approach using service account; API key referenced via ANTHROPIC_API_KEY env var only, never written to memory/knowledge/code. Recorded 2026-08-26. Review by 2026-11-24.
 - decisions/decision-003.md — placeOrder endpoint changed from @GetMapping to @PostMapping to fix REST method semantics violation; breaking change for external GET callers bypassing the gateway. Recorded 2026-09-01. Review by 2026-12-01.
