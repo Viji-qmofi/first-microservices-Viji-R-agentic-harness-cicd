@@ -1,0 +1,26 @@
+{
+  "file_read": [
+    "planner",
+    "implementer",
+    "reviewer",
+    "tester",
+    "reviewer_strict",
+    "reviewer_lenient"
+  ],
+  "file_write": [
+    "implementer"
+  ],
+  "codebase_search": [
+    "planner",
+    "implementer",
+    "reviewer",
+    "reviewer_strict",
+    "reviewer_lenient"
+  ],
+  "shell": [],
+  "test_runner": [
+    "tester"
+  ],
+  "task_tracker": [],
+  "web_search": []
+}
