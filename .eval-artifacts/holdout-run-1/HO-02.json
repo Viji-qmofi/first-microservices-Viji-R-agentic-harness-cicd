@@ -1,0 +1,21 @@
+{
+  "task_id": "HO-02",
+  "expected_path": ["planner", "orchestrator_plan_review", "implementer", "orchestrator_diff_review", "orchestrator_test"],
+  "duration_seconds": 250,
+  "duration_note": "Sum of three self-reported active-processing figures (4s + 1m13s + 2m53s = 250s), excluding the human approval-wait gaps between them.",
+  "cost_usd": 0.95,
+  "cost_note": "Session-cumulative upper bound, not a per-run delta: no /status reading was taken before this task started. Same limitation as DEV-02 and CAL-01-after.",
+  "events": [
+    {"type": "subagent", "step": 1, "role": "planner", "output": "CONDENSED, not verbatim: plan to add a guard as the first statement of OrderServiceImpl.placeOrder(int) throwing ResponseStatusException(BAD_REQUEST, 'productId must be a positive integer') when productId <= 0; no logging; tests in OrderServiceImplTest for 0, -1, Integer.MIN_VALUE, and no-log; files: OrderServiceImpl.java and OrderServiceImplTest.java only. Cited feign-exception-handling-convention.md and noted no input-validation lesson existed. Flagged the externally visible 400 behavior change."},
+    {"type": "tool_call", "role": "planner", "tool": "retrieve", "args": {"project_id": "proj-lessons", "classification_ceiling": "internal"}, "result": {"note": "As reported by the planner: source feign-exception-handling-convention.md chunks 0-2. Scores and retrieval method not captured."}},
+    {"type": "orchestrator_step", "step": 2, "role": "orchestrator_plan_review", "output": "Plan adequate: concrete files and methods, correctly scoped, no code, retrieval cited. Because it changes an API response (productId <= 0 now returns 400 without a downstream call), flagged to the human and paused before implementation."},
+    {"type": "subagent", "step": 3, "role": "implementer", "output": "CONDENSED, not verbatim: added the guard as the first statement of placeOrder and four tests (zero, negative, Integer.MIN_VALUE, logs-nothing). Judgment calls: separate tests instead of a parameterized one; string literal for the reason. No lesson recorded. Reported that nothing was run."},
+    {"type": "orchestrator_step", "step": 4, "role": "orchestrator_diff_review", "output": "git diff limited to OrderServiceImpl.java (+6) and OrderServiceImplTest.java (+47) once CR-at-EOL noise is ignored; ten other files show line-ending-only differences and were not modified in this run. Guard is first in placeOrder; no logging or catch-branch changes; existing tests untouched."},
+    {"type": "orchestrator_step", "step": 5, "role": "orchestrator_test", "output": "Ran ./mvnw test in ecom-order-service: BUILD SUCCESS, 36 tests, 0 failures, 0 errors (32 in OrderServiceImplTest).", "test_result": {"passed": true, "command": "./mvnw test"}}
+  ],
+  "commit": "9c8d3e5",
+  "events_note": "Step outputs are carried over from the run's dev transcript (.eval-artifacts/runs/dev-placeorder-productid-validation.json), which recorded the same task and commit; they are condensed, not verbatim subagent text.",
+  "escalated_to_human": true,
+  "escalation_note": "Escalated for approval of the externally visible 400 behavior change, not for a reviewer conflict. No reviewer roles ran.",
+  "human_approved": true
+}

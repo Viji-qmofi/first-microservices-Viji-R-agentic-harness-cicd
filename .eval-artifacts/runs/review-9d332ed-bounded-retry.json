@@ -1,0 +1,15 @@
+{
+  "task_id": "review-9d332ed-bounded-retry",
+  "expected_path": ["orchestrator_diff_review", "orchestrator_test"],
+  "duration_seconds": 64,
+  "duration_note": "Measured from the `date` run at 20:29:51 UTC to 20:30:55 UTC. Excludes nothing; no approval waits occurred.",
+  "cost_usd": null,
+  "cost_note": "Not measured: /status is not available to the agent, and no before/after bracket was taken. Left null rather than fabricated.",
+  "events": [
+    {"type": "orchestrator_step", "step": 1, "role": "orchestrator_diff_review", "output": "Startup checks: .memory/SCOPE.md matches this project; no memory entry past its review date. Read commit 9d332ed (OrderServiceImpl.callWithRetry + OrderServiceImplTest + decision-005). Retry is scoped to RetryableException only; FeignException/NotFound propagate unretried; the single WARN still fires once from the outer catch. Findings: (a) InterruptedException path breaks out and rethrows the last RetryableException (503) with no test; (b) decision-005 and MEMORY_INDEX still say 'not yet committed'; (c) tests incurred real 200ms sleeps, addressed by later commit 15aa77c; (d) no test for a single failure then success. Verdict: approve."},
+    {"type": "orchestrator_step", "step": 2, "role": "orchestrator_test", "output": "Ran the module tests in a temporary git worktree checked out at 9d332ed: sh ./mvnw -o test. Tests run: 25 (OrderServiceImplTest), 26 total; Failures 0, Errors 0; BUILD SUCCESS. ./mvnw lacks the execute bit, so it was run via sh. Worktree removed afterwards.", "test_result": {"passed": true, "command": "sh ./mvnw -o test"}}
+  ],
+  "escalated_to_human": false,
+  "human_approved": null,
+  "note": "No planner/implementer/reviewer subagents were invoked; this was a review-only task with no code change and nothing to commit."
+}

@@ -1,0 +1,6 @@
+{
+  "planner": ["retrieve", "file_read", "codebase_search"],
+  "implementer": ["write_entry", "file_read", "file_write", "codebase_search"],
+  "orchestrator_review": ["retrieve"],
+  "orchestrator_test": []
+}

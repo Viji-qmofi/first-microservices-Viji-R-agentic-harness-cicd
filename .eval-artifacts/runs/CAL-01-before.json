@@ -1,0 +1,53 @@
+{
+  "task_id": "CAL-01-before",
+  "run_type": "calibration",
+  "expected_path": ["reviewer_strict", "reviewer_lenient", "orchestrator_conflict_resolution"],
+  "duration_seconds": null,
+  "cost_usd": null,
+  "measurement_note": "Run was not bracketed with `date` or `/status`, so duration and cost were not measured. Recorded as null rather than fabricated.",
+  "state": "UNRESOLVED_FAULT_CAPTURED_AS_EVIDENCE",
+  "subject": "commit 9ebb640 (order-service constructor injection)",
+  "events": [
+    {
+      "type": "orchestrator_step",
+      "step": 1,
+      "role": "orchestrator_startup_check",
+      "output": "Read .memory/SCOPE.md (matches project E-Commerce Microservices Application) and .memory/project/MEMORY_INDEX.md. No review dates had passed; decision-001's review date is an unfilled placeholder ('[90 days from decision-001's date]'), flagged. Ran `git show --stat 9ebb640`: files changed were .eval-artifacts/runs/DEV-01.json, .eval-artifacts/runs/DEV-02-constructor-injection.json, .eval-artifacts/runs/DEV-02-constructor-injection.log, OrderController.java, OrderServiceImpl.java (96 insertions, 12 deletions)."
+    },
+    {
+      "type": "subagent",
+      "step": 2,
+      "role": "reviewer_strict",
+      "instruction": "Review commit 9ebb640's diff in the repo at /workspace (the constructor-injection change). Return your full review_items output.",
+      "output": "Review of commit 9ebb640 (constructor injection in ecom-order-service)\n\nLimitation: I only have file_read and codebase_search, so I could not run `git show 9ebb640`. I reviewed the current state of the affected files, not the literal diff.\n\nreview_items:\n[\n  {\"section\": \"constructor_injection_correctness\", \"verdict\": \"approve\"},\n  {\"section\": \"wiring_test_coverage\", \"verdict\": \"reject\"},\n  {\"section\": \"scope_discipline\", \"verdict\": \"reject\"}\n]\n\nconstructor_injection_correctness: approve\n- In /workspace/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java, `feignClient` is `private final`. There is a single public constructor `OrderServiceImpl(IProductServiceFeignClient)` that assigns it. The `Autowired` import is gone.\n- In /workspace/ecom-order-service/src/main/java/com/productorder/controllers/OrderController.java, `orderService` is `private final`. There is a single public constructor `OrderController(IOrderService)` that assigns it. The `Autowired` import is gone.\n- With a single constructor, Spring injects it implicitly, so no `@Autowired` is needed.\n- No `@Autowired` remains in ecom-order-service. The only remaining `@Autowired` hits in the repo are in ecom-product-service, which is out of scope.\n\nwiring_test_coverage: reject\n- No test exercises the new constructor-based wiring. `OrderServiceImplTest` uses `@InjectMocks` with `@Mock`. Mockito's `@InjectMocks` falls back to field or setter injection, so this test would pass identically with the old field-injected version. It does not show that the constructor is the wiring path.\n- `OrderController` has no test at all. A codebase search finds it only in its own source file. Its new constructor is completely unverified. There is no `@WebMvcTest`, no Spring context test, and no `new OrderController(mock)` test.\n- Passing existing tests only shows behaviour was preserved, not that the change itself is verified. To fix this, add a test that builds each class through its constructor (`new OrderServiceImpl(mockClient)`, `new OrderController(mockService)`) and checks delegation. A Spring context or slice test that boots the beans would also work.\n\nscope_discipline: reject\n- Reason: I could not verify this because I had no diff access. The orchestrator's own artifact, `.eval-artifacts/runs/DEV-02-constructor-injection.json`, says the plan was limited to the two main files, and the current file contents are consistent with that. That artifact is a self-report, not evidence of the diff.\n- Minor observation: `OrderController.java` has a stray extra blank line after the constructor. This is cosmetic but suggests a hand edit.\n- I would flip this to approve if `git show --stat 9ebb640` shows only OrderController.java and OrderServiceImpl.java changed, plus any intended transcript or docs files.\n\nFiles reviewed:\n- /workspace/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java\n- /workspace/ecom-order-service/src/main/java/com/productorder/controllers/OrderController.java\n- /workspace/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java",
+      "review_items": [
+        {"section": "constructor_injection_correctness", "verdict": "approve"},
+        {"section": "wiring_test_coverage", "verdict": "reject"},
+        {"section": "scope_discipline", "verdict": "reject"}
+      ]
+    },
+    {
+      "type": "subagent",
+      "step": 3,
+      "role": "reviewer_lenient",
+      "instruction": "Review commit 9ebb640's diff in the repo at /workspace (the constructor-injection change). Return your full review_items output.",
+      "output": "Limitation: I have no git tool, so I could not read the diff of 9ebb640 directly. I reviewed the current state of both files plus the recorded run artifact `/workspace/.eval-artifacts/runs/DEV-02-constructor-injection.json`. That artifact records the orchestrator's `git diff --ignore-cr-at-eol` review and a `./mvnw test` run.\n\nreview_items:\n[\n  {\"section\": \"constructor_injection_correctness\", \"verdict\": \"approve\"},\n  {\"section\": \"wiring_test_coverage\", \"verdict\": \"approve\"},\n  {\"section\": \"scope_discipline\", \"verdict\": \"approve\"}\n]\n\nReasoning (all approved, so notes only):\n- constructor_injection_correctness:\n  - `/workspace/ecom-order-service/src/main/java/com/productorder/controllers/OrderController.java` has `private final IOrderService orderService` and a public single-arg constructor that assigns it.\n  - `/workspace/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java` has `private final IProductServiceFeignClient feignClient` and a public single-arg constructor that assigns it.\n  - Neither file has an `@Autowired` annotation or import.\n  - The only remaining `@Autowired` uses in the repo are in `ecom-product-service` (`ProductController` and its test), which is a different module.\n  - Spring injects a single-constructor bean automatically, so no annotation is needed.\n- wiring_test_coverage:\n  - `./mvnw test` in `ecom-order-service` gave 26 tests, 0 failures, 0 errors, BUILD SUCCESS.\n  - `OrderServiceImplTest` passes through Mockito `@InjectMocks` with the new constructor.\n  - The context-load test `EcomOrderServiceApplicationTests` also ran, and it would fail on a wiring problem. The controller has no dedicated test, but this is a mechanical refactor and the suite passing is adequate evidence.\n- scope_discipline:\n  - The recorded diff review shows only the two intended main files changed (import removed, field made final, constructor added). The test file was untouched.\n  - The retry constants and logic, catch ordering and comments in `OrderServiceImpl` are intact in the current file.\n  - The artifact notes `OrderController.java` line endings were restored to CRLF before commit to avoid a whole-file EOL change. I could not verify that independently.\n  - `ProductController` was left alone as out of scope.",
+      "review_items": [
+        {"section": "constructor_injection_correctness", "verdict": "approve"},
+        {"section": "wiring_test_coverage", "verdict": "approve"},
+        {"section": "scope_discipline", "verdict": "approve"}
+      ]
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 4,
+      "role": "orchestrator_conflict_observation",
+      "output": "Reviewers disagree on wiring_test_coverage (strict: reject, lenient: approve) and scope_discipline (strict: reject, lenient: approve); both approve constructor_injection_correctness. Neither reviewer had git access, so neither saw the literal diff. No resolution was applied, no build or test was run, no code or tests were changed, and no verdict was adopted. The conflict was reported to the user in chat and left open. The user then instructed that this unresolved state be captured as evidence before any fix."
+    }
+  ],
+  "resolution_applied": null,
+  "final_verdicts_adopted": null,
+  "escalated_to_human": false,
+  "escalation_note": "Set to false per user instruction, because no resolution mechanism escalated or resolved the conflict. The orchestrator did report the disagreement to the user in chat before this record was written.",
+  "human_approved": null
+}

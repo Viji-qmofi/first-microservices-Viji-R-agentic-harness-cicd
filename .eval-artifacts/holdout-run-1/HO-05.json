@@ -1,0 +1,119 @@
+{
+  "task_id": "HO-05",
+  "expected_path": [
+    "reviewer_strict",
+    "reviewer_lenient",
+    "orchestrator_conflict_resolution"
+  ],
+  "duration_seconds": 149,
+  "duration_note": "Human-supplied: the redo's self-reported 'Brewed for 2m 29s' = 149s. Covers only the successful redo (second attempt with a readable diff path), not the earlier failed first attempt where both reviewers could not read the diff file. Not measured by the agent.",
+  "cost_usd": 1.07,
+  "cost_note": "Human-supplied figures, recorded as stated: $0 at session start, $1.07 at session end, a genuine clean delta; the human states nothing else was run in this session besides this HO-05 task, including its failed first attempt. Agent observation for accuracy: this session's history also contains an earlier single-reviewer review of 9d332ed (.eval-artifacts/runs/review-9d332ed-bounded-retry.json) that preceded the dual-reviewer redo; if the $0 baseline was taken before that, the delta includes it. The agent cannot run /status and did not measure this itself.",
+  "events": [
+    {
+      "type": "orchestrator_step",
+      "step": 1,
+      "role": "orchestrator_setup",
+      "output": "Saved the 9d332ed diff (java files + decision-005 only; MEMORY_INDEX.md changes were NOT included) to the scratchpad, outside the project root."
+    },
+    {
+      "type": "subagent",
+      "step": 2,
+      "role": "reviewer_strict",
+      "attempt": 1,
+      "output": "Could not read the diff (path escapes project root). Returned 'reject (unverified)' on all three sections, explicitly not a finding on the code. Excluded from conflict analysis."
+    },
+    {
+      "type": "subagent",
+      "step": 3,
+      "role": "reviewer_lenient",
+      "attempt": 1,
+      "output": "Could not read the diff (path escapes project root). Issued no verdicts."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 4,
+      "role": "orchestrator_setup",
+      "output": "Copied the diff to /workspace/.eval-artifacts/commit-9d332ed.diff so both reviewers could read it, then re-invoked both."
+    },
+    {
+      "type": "subagent",
+      "step": 5,
+      "role": "reviewer_lenient",
+      "attempt": 2,
+      "output": "callWithRetry correctness: approve. Test coverage: approve (interrupt branch untested, real 200ms sleeps; minor, not defects). Documentation/decision record: approve, noting the stale 'Not yet done: change has not been committed' line."
+    },
+    {
+      "type": "subagent",
+      "step": 6,
+      "role": "reviewer_strict",
+      "attempt": 2,
+      "output": "callWithRetry_correctness: approve. test_coverage: reject (untested interrupt branch; no mixed RetryableException-then-FeignException test; retry-then-succeed does not assert empty log; backoff untested/hard-coded; no single-failure-then-success case). documentation_decision_record: reject (stale 'not yet committed' line; build-verification counts in a durable record; claims diff does not touch MEMORY_INDEX.md so decision-005 is unindexed; 'no HTTP response at all' overstated since Feign also raises RetryableException for read timeouts and ErrorDecoder results)."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 7,
+      "role": "orchestrator_conflict_resolution",
+      "output": "Sections in conflict: test_coverage (lenient approve vs strict reject) and documentation_decision_record (lenient approve vs strict reject). callWithRetry correctness is not in conflict (both approve). Escalated to the human without choosing a side. Orchestrator note for the human, not a resolution: the strict reviewer's claim that the commit does not touch MEMORY_INDEX.md is mistaken as a description of the commit (git show --stat lists MEMORY_INDEX.md, 3 lines changed) and arose because the diff file given to reviewers excluded it."
+    },
+    {
+      "type": "human_decision",
+      "step": 8,
+      "role": "human",
+      "output": "Human verdict on the escalated conflict: approve commit 9d332ed, with two follow-ups, not blocking. Human's stated words: 'approve commit 9d332ed, with two follow-ups (not blocking): add the fail-once-then-succeed test; fix the three-times-confirmed stale documentation once this holdout pass ends.'",
+      "section_decisions": [
+        {
+          "section": "callWithRetry_correctness",
+          "decision": "approve",
+          "reasoning": "Not in conflict; both reviewers approved."
+        },
+        {
+          "section": "test_coverage",
+          "decision": "approve, with one required follow-up",
+          "reasoning": "Human decision as stated: section 2 approved. One follow-up is required: add the fail-once-then-succeed test. The other four strict-reviewer gaps (interrupt branch untested, no RetryableException-then-FeignException mixed-failure test, retry-then-succeed tests do not assert an empty log, backoff hard-coded and unverified) are lower priority and not required follow-ups.",
+          "required_follow_ups": [
+            "fail-once-then-succeed test for placeOrder and viewAllProducts"
+          ],
+          "not_required": [
+            "interrupt branch untested",
+            "mixed RetryableException-then-FeignException test",
+            "empty-log assertion on retry-then-succeed",
+            "backoff hard-coded/unverified"
+          ]
+        },
+        {
+          "section": "documentation_decision_record",
+          "decision": "approve, fix deferred as a bundled follow-up",
+          "reasoning": "Human decision as stated: section 3 approved. The stale 'not yet committed' documentation fix (decision-005.md and MEMORY_INDEX.md) is deferred as a bundled follow-up until the holdout pass ends. Noted as now independently found three times this pass (earlier orchestrator review, reviewer_lenient, reviewer_strict).",
+          "deferred_follow_ups": [
+            "stale 'not yet committed' text in decision-005.md and MEMORY_INDEX.md, bundled"
+          ],
+          "note": "The human's statement gives no reasoning for the strict reviewer's build-verification-counts and 'no HTTP response at all' wording points; not recorded as required or waived."
+        }
+      ],
+      "follow_ups": [
+        "Add fail-once-then-succeed test for placeOrder and viewAllProducts (OrderServiceImplTest)  [required]",
+        "Fix stale 'not yet committed' text in decision-005.md and MEMORY_INDEX.md after the holdout pass ends  [deferred, bundled]"
+      ],
+      "follow_ups_done": false
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 9,
+      "role": "orchestrator_note",
+      "output": "Confirming evidence, as characterized by the human: the first attempt's rejection ('Path escapes the project root', reported by both reviewers when file_read was pointed at a scratchpad path outside /workspace) shows a distinct boundary working correctly. The human refers to it as the safe_path() rejection; the agent saw only the error text, not the function name. Both reviewers refused rather than substituting HEAD, and the strict reviewer's unverified rejects were excluded from the conflict analysis."
+    }
+  ],
+  "escalated_to_human": true,
+  "human_approved": true,
+  "human_approval_note": "Approval applies to the escalated review verdict on already-committed 9d332ed. No new commit was made in this run.",
+  "observed_not_fixed": [
+    {
+      "check": "role_order",
+      "finding": "Failed a third time this pass. Expected ['reviewer_strict','reviewer_lenient','orchestrator_conflict_resolution'], saw ['reviewer_strict','reviewer_lenient','reviewer_lenient','reviewer_strict','orchestrator_conflict_resolution'].",
+      "cause": "Two failed, tool-blocked reviewer attempts (both refused by the file-path safety check, 'Path escapes the project root') that produced no real review output, followed by the two successful reruns. Distinct from the earlier revision-loop failure, where the extra events came from a legitimate content-revision loop (planner's).",
+      "status": "observed, not fixed; transcript left as recorded rather than altered to pass",
+      "open_question_for_future_cycle": "Should a failed, no-real-output attempt count as a routing-relevant 'subagent' event at all, versus a separate event type (e.g. a blocked/failed attempt) that the routing checks don't count?"
+    }
+  ]
+}

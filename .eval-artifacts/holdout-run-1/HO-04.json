@@ -1,0 +1,116 @@
+{
+  "task_id": "HO-04",
+  "expected_path": [
+    "planner",
+    "orchestrator_plan_review",
+    "implementer",
+    "orchestrator_diff_review",
+    "orchestrator_test"
+  ],
+  "duration_seconds": 338,
+  "duration_note": "User-specified figure, described by the user as a self-reported active-processing figure. Orchestrator's own basis for 338: wall-clock from the session-start `date` reading (18:08:56 UTC) to 18:14:34 UTC after the commit; this was not bracketed immediately before the task and did not exclude the human-approval wait, so it is not a measured active-processing time.",
+  "cost_usd": 1.42,
+  "cost_note": "cost_usd=1.42 was supplied by the user; the orchestrator cannot read /status and did not measure it. User's statement: this session ran only the HO-04 task with nothing else before or after, so this is a genuine clean delta, not a session-cumulative upper bound like the other holdout tasks' cost figures. Orchestrator caveat: before the task, the session also ran a `date` call and CLAUDE.md startup checks (SCOPE.md and MEMORY_INDEX.md reads).",
+  "events": [
+    {
+      "type": "orchestrator_step",
+      "step": 0,
+      "role": "orchestrator_context_boundary",
+      "output": "Goal: change OrderServiceImplTest retry-exhaustion tests so they no longer wait on a real 200ms Thread.sleep, without changing production retry behaviour. No prior rules retired. Artifact: ecom-order-service OrderServiceImplTest / OrderServiceImpl retry logic. Startup: SCOPE.md matched project; no stale review dates; decision-001 has a placeholder review date."
+    },
+    {
+      "type": "subagent",
+      "step": 1,
+      "role": "planner",
+      "output": "FIRST PLAN (sent back): identified 6 sleeping tests (4 exhaustion + 2 succeed-after-retry, 400ms each), proposed an injectable sleeper seam in OrderServiceImpl with option (a) package-private second constructor or option (b) setter, left the choice to the Implementer, and included an optional guard test (step 7) plus a new assertion on a non-retried test (step 6). Files: OrderServiceImpl.java, OrderServiceImplTest.java. Full text not preserved verbatim in this transcript; the revised plan below is the one handed off."
+    },
+    {
+      "type": "tool_call",
+      "role": "planner",
+      "tool": "retrieve",
+      "args": {
+        "project_id": "proj-lessons",
+        "classification_ceiling": "internal",
+        "query": "retry backoff Thread.sleep tests slow retry exhaustion"
+      },
+      "result": {
+        "results": []
+      }
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 2,
+      "role": "orchestrator_plan_review",
+      "output": "First plan sent back: concrete and no code, cited retrieval (zero results), but left the option (a)/(b) design choice to the Implementer, included optional/extra scope (guard test, non-retried-test assertion), and did not name exact fixture/field changes. Requested a decisive revised plan."
+    },
+    {
+      "type": "subagent",
+      "step": 3,
+      "role": "planner",
+      "output": "REVISED PLAN (no code)\n\nPrior lessons: I queried mcp__retrieval__retrieve (project_id=proj-lessons, classification_ceiling=internal, query \"retry backoff Thread.sleep tests slow retry exhaustion\"). It returned ZERO results, so no prior lesson existed and none informed this plan. Design constraints come from the in-code comments in OrderServiceImpl.java: 3 attempts and 200ms are human-approved exact values, the retry loop is manual, and there is no logging inside the loop.\n\n1. Background: the only Thread.sleep is at line 53 of OrderServiceImpl.java, inside private callWithRetry, between attempts. It sleeps 200ms twice on an exhausted call. Six tests pay 400ms each: the four exhaustion tests (placeOrder_throwsServiceUnavailable_whenProductServiceUnreachable, placeOrder_logsWarn_whenProductServiceUnreachable, viewAllProducts_throwsServiceUnavailable_whenProductServiceUnreachable, viewAllProducts_logsWarn_whenProductServiceUnreachable) and the two succeed-after-two-failures tests (placeOrder_succeedsAfterRetries_whenProductServiceUnreachableTwiceThenSucceeds, viewAllProducts_succeedsAfterRetries_whenProductServiceUnreachableTwiceThenSucceeds). A production seam is strictly necessary, because @InjectMocks plus the current code gives tests no way to skip the real sleep.\n\n2. Design decision (final, not left to the Implementer): use a package-private SECOND CONSTRUCTOR, i.e. option (a). Do not use a setter.\n\n3. Production change in OrderServiceImpl.java (only this):\n- Add a new private final field named `sleeper`, of type java.util.function.LongConsumer. Reuse the JDK type, so no new interface or file is created.\n- Add a package-private (no access modifier) constructor `OrderServiceImpl(IProductServiceFeignClient feignClient, LongConsumer sleeper)`. It assigns both fields.\n- The existing public constructor `OrderServiceImpl(IProductServiceFeignClient feignClient)` stays and delegates to the new constructor. It passes a sleeper that calls Thread.sleep(ms). Because Thread.sleep throws the checked InterruptedException, a LongConsumer cannot throw it, so the default sleeper implementation must catch InterruptedException, call Thread.currentThread().interrupt(), and return. Then callWithRetry must preserve the existing \"stop retrying on interrupt\" behaviour: after calling the sleeper, if Thread.currentThread().isInterrupted() is true, break out of the loop exactly as the current catch block does. Net behaviour: an interrupt still restores the flag and breaks the loop, then throws the last RetryableException, as today.\n- Spring wiring consequence: with two constructors, Spring cannot choose one and would fall back to a nonexistent no-arg constructor and fail at startup. Therefore add @Autowired (org.springframework.beans.factory.annotation.Autowired) on the PUBLIC one-arg constructor `OrderServiceImpl(IProductServiceFeignClient)`. The package-private two-arg constructor gets no annotation. Add the import.\n- callWithRetry replaces `Thread.sleep(RETRY_BACKOFF_MS)` with `sleeper.accept(RETRY_BACKOFF_MS)`, followed by the interrupt-flag check above. The try/catch(InterruptedException) block around the sleep is removed from callWithRetry, since the default sleeper now owns it.\n- MAX_ATTEMPTS = 3 and RETRY_BACKOFF_MS = 200 are unchanged. No logging is added in the loop. The catch blocks in placeOrder and viewAllProducts are unchanged.\n\n4. Test changes in OrderServiceImplTest.java (exact fixture and field changes):\n- Remove `@InjectMocks` from the field `orderService`, keeping it as `private OrderServiceImpl orderService;`. Remove the now-unused import org.mockito.InjectMocks. Keep the `@Mock feignClient` field.\n- Add a new field `private List<Long> recordedSleeps;` (java.util.List is already imported; java.util.ArrayList must be imported).\n- In the existing `setUpLogAppender` @BeforeEach method, or a new @BeforeEach method named `setUpOrderService`, run this sequence: initialise `recordedSleeps = new ArrayList<>();` and then `orderService = new OrderServiceImpl(feignClient, recordedSleeps::add);`. Prefer the new separate method `setUpOrderService` so the log-appender fixture stays untouched. Note that `recordedSleeps::add` adapts to LongConsumer via boxing; that is acceptable. Because MockitoExtension injects @Mock fields before @BeforeEach runs, feignClient is non-null at that point.\n- Leave the three tests that construct OrderServiceImpl explicitly with the one-arg constructor unchanged (placeOrder_usesConstructorSuppliedClient_whenBuiltExplicitly, viewAllProducts_usesConstructorSuppliedClient_whenBuiltExplicitly, placeOrder_reachesOnlyOwnClient_whenTwoInstancesBuiltWithDistinctClients). They never retry.\n\n5. Assertions: in ONLY the six sleeping tests listed in step 1, keep every existing assertion, and add exactly one new assertion each: `recordedSleeps` equals a list of two elements, 200L and 200L. Nothing else is added. No assertions are added to non-retried tests, and no extra tests are added.\n\n6. Not in scope, explicitly excluded: no optional extra test, no change to non-retried tests, no config or dependency changes, no changes to the retry constants or to the exception-to-status mapping.\n\n7. Visibility outside the codebase: none. API responses, status codes, log output and retry timing are unchanged. The only cross-cutting item is the @Autowired annotation on the public constructor, which is internal Spring wiring only, and I flag it for transparency. Verification is ./mvnw test in ecom-order-service, run by the Orchestrator. The suite should get about 2.4s faster (six tests x 400ms of sleep removed).\n\nFILE LIST\n- /workspace/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java\n- /workspace/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java\nNo other files should change."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 4,
+      "role": "orchestrator_plan_review",
+      "output": "Revised plan judged adequate: concrete (exact files/fields/methods), correctly scoped to two files, no code, design decision made by the planner, retrieval cited (zero results). No externally visible behaviour change, so no human flag needed. Handed to implementer verbatim."
+    },
+    {
+      "type": "subagent",
+      "step": 5,
+      "role": "implementer",
+      "output": "Implemented the plan in two files. I did not run a build or tests, and I did not record a lesson because this was a routine change.\n\nOrderServiceImpl.java: added imports LongConsumer and Autowired; added field `private final LongConsumer sleeper`; public one-arg constructor now has @Autowired and delegates via this(feignClient, OrderServiceImpl::sleepMillis); added package-private two-arg constructor; added private static void sleepMillis(long) which calls Thread.sleep, catches InterruptedException and restores the interrupt flag; in callWithRetry, Thread.sleep(RETRY_BACKOFF_MS) and its try/catch replaced by sleeper.accept(RETRY_BACKOFF_MS) followed by `if (Thread.currentThread().isInterrupted()) break;`. MAX_ATTEMPTS, RETRY_BACKOFF_MS, catch blocks and the no-logging rule unchanged.\n\nOrderServiceImplTest.java: removed @InjectMocks on orderService and its import; added ArrayList import; added field List<Long> recordedSleeps and a new @BeforeEach setUpOrderService() building new OrderServiceImpl(feignClient, recordedSleeps::add); setUpLogAppender untouched; added assertThat(recordedSleeps).isEqualTo(List.of(200L, 200L)) to exactly six tests (placeOrder_succeedsAfterRetries..., placeOrder_throwsServiceUnavailable..., placeOrder_logsWarn..., viewAllProducts_succeedsAfterRetries..., viewAllProducts_throwsServiceUnavailable..., viewAllProducts_logsWarn...). The three explicit-constructor tests are unchanged.\n\nJudgment calls the plan did not cover: rewrote both files in full (no partial-edit tool) so git diff should be checked for stray whitespace/line-ending changes; used method reference OrderServiceImpl::sleepMillis with a small private static method instead of an inline lambda; with two @BeforeEach methods JUnit does not guarantee relative order, but they are independent."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 6,
+      "role": "orchestrator_diff_review",
+      "output": "Checked git diff myself. Plain git diff listed 12 files under ecom-order-service, but 10 were line-ending-only differences with July mtimes (pre-existing, not the implementer's). git diff --ignore-cr-at-eol showed only OrderServiceImpl.java (+28) and OrderServiceImplTest.java (+17). Diff matched the implementer's claims; retry constants, status mapping and logging unchanged. Also retrieved prior lessons (feign-exception-handling-convention.md, keyword match) and consulted .memory/knowledge/coding-standards.md: constructor injection and no-orphaned-code standards satisfied."
+    },
+    {
+      "type": "tool_call",
+      "role": "orchestrator",
+      "tool": "retrieve",
+      "args": {
+        "project_id": "proj-lessons",
+        "classification_ceiling": "internal",
+        "query": "testing standards injectable seam constructor injection retry backoff"
+      },
+      "result": {
+        "results": [
+          {
+            "source_document": "feign-exception-handling-convention.md",
+            "chunk_index": 3,
+            "similarity_score": null,
+            "retrieval_method": "keyword"
+          }
+        ]
+      }
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 7,
+      "role": "orchestrator_test",
+      "output": "Ran ./mvnw test in ecom-order-service myself: 36 tests run, 0 failures, 0 errors, BUILD SUCCESS. EcomOrderServiceApplicationTests (contextLoads) passed with two constructors; OrderServiceImplTest ran 32 tests in 0.225s.",
+      "test_result": {
+        "passed": true,
+        "command": "./mvnw test"
+      }
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 8,
+      "role": "human_checkpoint",
+      "output": "Presented plan, diff and test result to the human; human replied \"yes\". Committed only the two files as 15aa77c."
+    }
+  ],
+  "implementer_storage_writes": "none reported; .memory/storage/storage-audit.log not cross-checked",
+  "escalated_to_human": false,
+  "human_approved": true,
+  "observed_not_fixed": [
+    "decision-001 review date in .memory/project/MEMORY_INDEX.md is an unfilled placeholder ('[90 days from decision-001's date]'), so its staleness cannot be evaluated.",
+    "decision-005 (bounded Feign retry) is listed in MEMORY_INDEX.md as 'Not yet committed', added at the user's request. As of this run its review date (2026-12-15) had not passed; the orchestrator did not previously record it as stale.",
+    "module3_doc/routing-and-tool-grant-map.json is stale: it still lists 'orchestrator_review' rather than 'orchestrator_plan_review' / 'orchestrator_diff_review'. This is a harness infrastructure bug, distinct from an orchestration behavior fault, first exposed by this run. Verified in the file. Note: the tool_grants failure in this run was recorded against role 'orchestrator' (the label used for the orchestrator's retrieve call), which is absent from the map under any naming; the failure was left exactly as recorded, with no relabeling.",
+    "role_order's known single-occurrence-per-role limitation recurred here in a holdout task: the run's plan revision produced planner and orchestrator_plan_review twice, which the expected_path does not allow. Added at the user's direction, which states this was already noted in DEV-04's regression check; the orchestrator could not find that note in DEV-04-fts-query-tests.json. Failure left exactly as recorded, with no expected_path change."
+  ]
+}

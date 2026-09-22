@@ -1,0 +1,108 @@
+{
+  "task_id": "DEV-02-constructor-injection",
+  "expected_path": [
+    "planner",
+    "orchestrator_plan_review",
+    "implementer",
+    "orchestrator_diff_review",
+    "orchestrator_test"
+  ],
+  "duration_seconds": 188,
+  "cost_usd": 1.19,
+  "measurement_note": "duration_seconds=188: `date` bracket 21:14:52 UTC (start) to 21:18:00 UTC (tests finished, human checkpoint summary presented). Excludes the human approval wait and the commit step: approval came between ~21:18:00 and commit 9ebb640 at 21:19:17 UTC; the exact time of the human's reply was not recorded (start-to-commit total was 265s). cost_usd=1.19 is a session-cumulative UPPER BOUND, not an isolated cost; see cost_measurement.",
+  "events": [
+    {
+      "type": "subagent",
+      "step": 1,
+      "role": "planner",
+      "output": "PLAN: Convert field @Autowired to constructor injection in OrderController and OrderServiceImpl\n\nPrior lessons: I retrieved from proj-lessons twice (ceiling \"internal\"). Nothing retrieved was directly about DI style.\n- feign-exception-handling-convention.md, chunk 3: \"This convention is recorded formally in `.memory/project/decisions/decision-001.md` and `decision-004.md`, and as a standing rule in `.memory/knowledge/coding-standards.md`.\" This only points to the coding-standards file. I could not read it, because codebase_search blocks .memory/. I am relying on the task brief's statement that the standard requires constructor injection. The Orchestrator or Implementer should confirm the exact wording in .memory/knowledge/coding-standards.md.\n- The other hits (git-worktree-windows-paths.md, chmod-root-bypass.md) are irrelevant.\n\nCode observations:\n- OrderController.java has one field-injected dependency: `@Autowired private IOrderService orderService;`.\n- OrderServiceImpl.java has one field-injected dependency: `@Autowired private IProductServiceFeignClient feignClient;`.\n- Neither class is instantiated with `new` anywhere in the module.\n- No test references OrderController.\n- OrderServiceImplTest.java uses Mockito `@InjectMocks`, which supports constructor injection.\n\nSteps:\n1. OrderController: remove the `@Autowired` annotation from the `orderService` field. Make the field `private final`. Add one explicit public constructor taking `IOrderService` and assigning it to the field. Do not use `@Autowired` on the constructor. Do not add Lombok. Leave request mappings, package-private handler visibility and method bodies untouched.\n2. OrderController: remove the unused `Autowired` import.\n3. OrderServiceImpl: same change to `feignClient`; constructor after the constants and field, before `callWithRetry`.\n4. OrderServiceImpl: remove the unused `Autowired` import.\n5. OrderServiceImpl: leave all other content byte-for-byte unchanged (MAX_ATTEMPTS 3, RETRY_BACKOFF_MS 200, callWithRetry logic, catch ordering, log levels, status mappings, comments).\n6. Check OrderServiceImplTest.java wiring; edit only if reflective, and flag it if so.\n7. Verification by the Orchestrator, not the Implementer: ./mvnw test in ecom-order-service; git diff limited to the two main files; confirm no @Autowired remains in the module.\n8. No externally visible behavior change; no human sign-off needed for behavior. Usual pre-commit checkpoint applies.\n9. Implementer should not record a lesson unless something surprising turns up.\n\nEXPLICIT FILE LIST\nModify: ecom-order-service/src/main/java/com/productorder/controllers/OrderController.java; ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java\nRead to verify, modify only if wiring is reflective: ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java\nNo other files should change.\n\n(Note: the planner's report was reproduced by the orchestrator with paths shortened to repo-relative and steps 1 and 3 lightly condensed; not strictly byte-verbatim.)"
+    },
+    {
+      "type": "tool_call",
+      "role": "planner",
+      "tool": "retrieve",
+      "args": {
+        "query": "constructor injection vs field @Autowired dependency injection style",
+        "project_id": "proj-lessons",
+        "classification_ceiling": "internal"
+      },
+      "result": {
+        "results": [
+          {
+            "source_document": "git-worktree-windows-paths.md",
+            "chunk_index": 0,
+            "retrieval_method": "keyword"
+          },
+          {
+            "source_document": "git-worktree-windows-paths.md",
+            "chunk_index": 1,
+            "retrieval_method": "keyword"
+          }
+        ]
+      },
+      "source_note": "Recovered after the fact from the planner subagent's own transcript file (agent a0c8ed6b195f1062a, this task), not reconstructed from its summary. No similarity_score recorded: keyword-fallback results."
+    },
+    {
+      "type": "tool_call",
+      "role": "planner",
+      "tool": "retrieve",
+      "args": {
+        "query": "coding standard dependency injection constructor",
+        "project_id": "proj-lessons",
+        "classification_ceiling": "internal"
+      },
+      "result": {
+        "results": [
+          {
+            "source_document": "feign-exception-handling-convention.md",
+            "chunk_index": 3,
+            "retrieval_method": "keyword"
+          },
+          {
+            "source_document": "chmod-root-bypass.md",
+            "chunk_index": 0,
+            "retrieval_method": "keyword"
+          }
+        ]
+      },
+      "source_note": "Recovered after the fact from the planner subagent's own transcript file (agent a0c8ed6b195f1062a, this task), not reconstructed from its summary. No similarity_score recorded: keyword-fallback results."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 2,
+      "role": "orchestrator_plan_review",
+      "output": "Plan judged adequate: concrete (exact files, fields, imports), correctly scoped (two main files, test only if reflective), no code, cites retrieval results (nothing relevant on DI style). States no externally visible behavior change, so no human behavior sign-off was required. The planner could not read .memory/knowledge/coding-standards.md; the orchestrator read it directly and confirmed the 'Dependency injection style' section: 'Prefer constructor injection over field @Autowired... matching the pattern already used in ProductServiceImpl.' Plan passed to implementer with that confirmation appended as an orchestrator note."
+    },
+    {
+      "type": "subagent",
+      "step": 3,
+      "role": "implementer",
+      "output": "Both classes now use constructor injection. I ran nothing, so none of this is verified.\n\nChanges\n- OrderController.java: the orderService field is now private final, with an explicit public constructor taking IOrderService. Removed @Autowired and its import. Request mappings, package-private handler visibility and method bodies unchanged.\n- OrderServiceImpl.java: the feignClient field is now private final, with an explicit public constructor taking IProductServiceFeignClient, placed after the constants and field, before callWithRetry. Removed @Autowired and its import. Everything else unchanged in content, including MAX_ATTEMPTS=3, RETRY_BACKOFF_MS=200, retry logic, catch ordering, log levels, status mappings and comments.\n- Wrote both files back in full, so the Orchestrator should confirm with git diff that no whitespace or line-ending changes crept in.\n\nTest\n- Did not edit OrderServiceImplTest.java. It uses @ExtendWith(MockitoExtension.class) with @Mock IProductServiceFeignClient and @InjectMocks OrderServiceImpl, no reflective field setting.\n\nOther\n- No Lombok. No lesson recorded (routine change). Plan left nothing to decide. Did not search for remaining @Autowired (assigned to the Orchestrator).\n\n(Paths shortened and lightly condensed by the orchestrator; not strictly byte-verbatim.)"
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 4,
+      "role": "orchestrator_diff_review",
+      "output": "git diff --ignore-cr-at-eol for ecom-order-service shows exactly the intended changes: OrderController (import removed; field made private final; constructor added) and OrderServiceImpl (import removed; field made private final; constructor added). Nothing else in the module differs semantically. grep for @Autowired in ecom-order-service/src returns nothing. OrderServiceImplTest.java untouched. CAVEAT: raw git diff --numstat shows OrderController.java at 36/34 lines versus 5/3 for OrderServiceImpl.java; git ls-files --eol shows OrderController is i/crlf w/lf, i.e. the working tree is LF against a CRLF index. Many other files in the module and repo show whole-file line-ending diffs that pre-date this task, so this is likely environment churn, but it could not be established whether the implementer flipped this file's endings or they were already LF. Committing OrderController.java as-is would therefore include a whole-file EOL change. No standards/lessons retrieval was performed by the orchestrator during review beyond reading coding-standards.md."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 5,
+      "role": "orchestrator_test",
+      "output": "Ran ./mvnw test in /workspace/ecom-order-service. Result: Tests run: 26, Failures: 0, Errors: 0, Skipped: 0; BUILD SUCCESS (22.9s). OrderServiceImplTest ran 25 tests, passing via Mockito @InjectMocks with the new constructor. A baseline pass count from before the change was not captured, so 'same pass count as before' from plan step 7 is not independently confirmed. No test covers OrderController, so Spring context wiring of the controller constructor is exercised only if EcomOrderServiceApplicationTests loads the context (1 test ran there).",
+      "test_result": {
+        "passed": true,
+        "command": "./mvnw test"
+      }
+    }
+  ],
+  "escalated_to_human": false,
+  "human_approved": true,
+  "notes": "human_approved=true: the pre-commit checkpoint (plan, diff, test result) was presented and the human approved the commit. (This sentence originally read false, written before approval, and was left stale after the later approval note; corrected.) escalated_to_human=false: the plan proposed no externally visible behavior change and no subagent exceeded its tool grant. Storage audit cross-check: .memory/storage/storage-audit.log has zero entries dated 2026-09-18, consistent with the implementer recording no lesson and the planner performing only reads. Context-boundary procedure from CLAUDE.md was performed at the start of this phase. Human approved the commit with the message 'commit' after the run summary. Before committing, OrderController.java line endings were restored to CRLF (matching the index) so the commit contains only the intended change; the LF working-tree state noted in orchestrator_diff_review was therefore not committed. Correction (post-commit): the original retrieve tool_call entry claimed the planner's exact query strings were not captured and listed 3 results with missing fields. That was wrong: the raw calls were still recoverable from the planner's transcript. It is replaced by two retrieve events with verbatim queries and all 4 results (source_document, chunk_index, retrieval_method=keyword for each). All four hits came from the keyword fallback; the two off-topic lessons matched on loose keywords.",
+  "cost_measurement": {
+    "value_usd": 1.19,
+    "kind": "session_cumulative_upper_bound",
+    "isolated": false,
+    "note": "NOT an isolated measurement. $1.19 is the session-cumulative cost reported by the human, read after the task. Usage was not checked before DEV-02 started, and the session's wall time (48m52s) shows substantial other work happened first (eval-harness fixes, the DEV-01 transcript correction). The true cost of this run alone is unknown and lower than $1.19; the value is recorded so the budget check has a real number, not as a clean per-run measurement. A properly bracketed before/after /status delta should replace it on a future run."
+  }
+}

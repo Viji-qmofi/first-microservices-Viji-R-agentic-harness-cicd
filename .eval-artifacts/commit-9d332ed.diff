@@ -1,0 +1,346 @@
+commit 9d332ed923e4d3dc08fbc3b63474bf93239a417f
+Author: viji-qmofi <vijiramu@gmail.com>
+Date:   Wed Sep 16 14:53:53 2026 +0000
+
+    feat: bounded retry for Feign RetryableException in OrderServiceImpl
+    
+    placeOrder() and viewAllProducts() now retry a Feign call up to 3 total
+    attempts (1 initial + 2 retries) with a fixed 200ms backoff when it fails
+    with feign.RetryableException (true unreachable-service case), instead of
+    falling straight to 503 on the first failure. The general FeignException
+    branch (real HTTP error responses) is untouched.
+    
+    docs: record decision-005 documenting the retry design and the
+    human-approved retry/backoff values.
+    
+    Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+
+diff --git a/.memory/project/decisions/decision-005.md b/.memory/project/decisions/decision-005.md
+new file mode 100644
+index 0000000..ee3228c
+--- /dev/null
++++ b/.memory/project/decisions/decision-005.md
+@@ -0,0 +1,23 @@
++# Decision 005 - Bounded Retry for RetryableException in OrderServiceImpl
++
++**Date:** 2026-09-16
++
++**Review by:** 2026-12-15
++
++**Status:** Active
++
++**Builds on:** decision-004.md's `RetryableException` branch (true unreachable-service case -> WARN log -> 503). That branch's *classification* and *terminal outcome* are unchanged; what changes is that the Feign call itself is now retried a bounded number of times before falling into that branch.
++
++**Decision:** In both `placeOrder(int)` and `viewAllProducts()` in `OrderServiceImpl`, the Feign call (`feignClient.getById(...)` / `feignClient.getAllProducts()`) is routed through a new private helper `callWithRetry(Supplier<T>)`. The helper retries only on `feign.RetryableException` (no HTTP response received at all), up to `MAX_ATTEMPTS = 3` total attempts (1 initial + 2 retries), with a fixed `RETRY_BACKOFF_MS = 200` (200ms) `Thread.sleep` between attempts -- no exponential backoff or jitter. Once attempts are exhausted, the last `RetryableException` is rethrown unchanged and flows into the existing decision-004 `catch (RetryableException ex)` block (WARN log, 503) exactly as before. `FeignException.NotFound` and general `FeignException` (real HTTP responses) are not retried -- they are not `RetryableException` subtypes, so they propagate out of the helper on the first attempt, unretried, and their decision-004 handling/status-mapping is completely untouched.
++
++**Why a manual loop instead of a Feign `Retryer` bean:** `OrderServiceImplTest` mocks `IProductServiceFeignClient` directly with Mockito, which bypasses Feign's `SynchronousMethodHandler`/`Retryer` SPI entirely -- a `Retryer`-based fix would never be exercised by the existing test suite and would require new Spring-context/WireMock integration tests this module doesn't otherwise have. The retry is instead implemented as a plain bounded loop at the call site in `OrderServiceImpl`, kept verifiable with the same Mockito approach already established.
++
++**No logging inside the retry loop:** the single WARN log for an exhausted retry sequence still fires exactly once, from the existing outer `catch (RetryableException ex)` block, only after retries are exhausted -- preserving the existing `listAppender.list).hasSize(1)` test assertions unmodified.
++
++**Externally-visible behavior change (flagged and approved by the human before implementation):** a downstream outage that previously returned 503 on the very first failed attempt now takes up to ~400ms longer before returning 503, and a transient (self-resolving within ~400ms) outage may now succeed transparently instead of failing. Retry count (3) and backoff (200ms fixed) were explicit human-approved values, not left to implementer discretion.
++
++**Test coverage:** `OrderServiceImplTest` updated -- two new tests (`placeOrder_succeedsAfterRetries_...`, `viewAllProducts_succeedsAfterRetries_...`) cover retry-then-succeed (2 failures + 1 success, `verify(times(3))`). All pre-existing `RetryableException`-unreachable tests gained `verify(feignClient, times(3))` (confirms full retry exhaustion, not just one attempt). All pre-existing plain-`FeignException` tests (`NotFound`, 4xx, 5xx, boundary, error-log cases) gained `verify(feignClient, times(1))` (confirms no retry occurs on non-`RetryableException` paths).
++
++**Build verification:** Run directly by the orchestrating session (not delegated to Implementer, which has no shell access by design): `./mvnw test -Dtest=OrderServiceImplTest` -> `Tests run: 25, Failures: 0, Errors: 0` -- `BUILD SUCCESS`. Full module suite `./mvnw test` -> `Tests run: 26, Failures: 0, Errors: 0` -- `BUILD SUCCESS`. Diff independently reviewed against the implementer's claimed summary via `git diff` and confirmed scoped to exactly the two named files (other working-tree changes present in the repo at session start are pre-existing line-ending-only diffs in unrelated files, confirmed via `git diff --ignore-all-space`, not touched by this change).
++
++**Not yet done:** change has not been committed -- pending human approval per the CLAUDE.md human-checkpoint requirement.
+diff --git a/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java b/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java
+index ee244d5..334b1ee 100644
+--- a/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java
++++ b/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java
+@@ -1,6 +1,7 @@
+ package com.productorder.service;
+ 
+ import java.util.List;
++import java.util.function.Supplier;
+ 
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -21,16 +22,50 @@ public class OrderServiceImpl implements IOrderService{
+ 
+ 	private static final Logger logger = LoggerFactory.getLogger(OrderServiceImpl.class);
+ 
++	// 1 initial call + 2 retries; human-approved exact value, not to be changed.
++	private static final int MAX_ATTEMPTS = 3;
++	// Fixed delay between attempts, no exponential growth or jitter; human-approved exact value.
++	private static final long RETRY_BACKOFF_MS = 200;
++
+ 	@Autowired
+ 	private IProductServiceFeignClient feignClient;
+ 
++	// Manual bounded retry loop for feign.RetryableException (true "service unreachable" case: no HTTP
++	// response received at all). Implemented here rather than via a Feign Retryer bean/config because the
++	// test suite mocks IProductServiceFeignClient directly with Mockito, which bypasses Feign's own
++	// SynchronousMethodHandler/Retryer machinery entirely -- a Retryer-SPI-based fix would never be
++	// exercised by those tests. No logging occurs inside this loop: the single WARN log for an exhausted
++	// retry sequence must continue to fire exactly once, from the caller's existing
++	// catch (RetryableException ex) block, only after retries are exhausted. FeignException.NotFound and
++	// general FeignException are not RetryableException subtypes, so they propagate out on the very first
++	// attempt, unretried.
++	private <T> T callWithRetry(Supplier<T> feignCall) {
++		RetryableException lastException = null;
++		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
++			try {
++				return feignCall.get();
++			} catch (RetryableException ex) {
++				lastException = ex;
++				if (attempt < MAX_ATTEMPTS) {
++					try {
++						Thread.sleep(RETRY_BACKOFF_MS);
++					} catch (InterruptedException interruptedEx) {
++						Thread.currentThread().interrupt();
++						break;
++					}
++				}
++			}
++		}
++		throw lastException;
++	}
++
+ 	@Override
+ 	public ResponseEntity<String> placeOrder(int productId) {
+ 		// check if the product by id is available if yes place order
+ 		//	else cancel the order
+ 		Product product;
+ 		try {
+-			product = feignClient.getById(productId);
++			product = callWithRetry(() -> feignClient.getById(productId));
+ 		} catch (FeignException.NotFound ex) {
+ 			throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+ 					"Product with id "+productId+" not found");
+@@ -68,7 +103,7 @@ public class OrderServiceImpl implements IOrderService{
+ 	@Override
+ 	public List<Product> viewAllProducts() {
+ 		try {
+-			return feignClient.getAllProducts();
++			return callWithRetry(() -> feignClient.getAllProducts());
+ 		// Same RetryableException-before-FeignException distinction as placeOrder() above; see the comments
+ 		// there for the full explanation (no NotFound case here since this call returns a list, not a single
+ 		// resource).
+diff --git a/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java b/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java
+index 7fd651c..bc7675b 100644
+--- a/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java
++++ b/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java
+@@ -2,6 +2,8 @@ package com.productorder.service;
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.assertj.core.api.Assertions.assertThatThrownBy;
++import static org.mockito.Mockito.times;
++import static org.mockito.Mockito.verify;
+ import static org.mockito.Mockito.when;
+ 
+ import java.nio.charset.StandardCharsets;
+@@ -69,6 +71,21 @@ class OrderServiceImplTest {
+ 		assertThat(result.getBody()).isEqualTo("Order placed successfully for Mobile");
+ 	}
+ 
++	@Test
++	void placeOrder_succeedsAfterRetries_whenProductServiceUnreachableTwiceThenSucceeds() {
++		Product product = new Product("Mobile", 1, "Samsung", "Electronics");
++		when(feignClient.getById(1))
++				.thenThrow(unreachableException("/catalog-service/v1/products/productId/1"))
++				.thenThrow(unreachableException("/catalog-service/v1/products/productId/1"))
++				.thenReturn(product);
++
++		ResponseEntity<String> result = orderService.placeOrder(1);
++
++		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
++		assertThat(result.getBody()).isEqualTo("Order placed successfully for Mobile");
++		verify(feignClient, times(3)).getById(1);
++	}
++
+ 	@Test
+ 	void placeOrder_throwsNotFound_whenProductDoesNotExist() {
+ 		when(feignClient.getById(999)).thenThrow(notFoundException(999));
+@@ -80,6 +97,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+ 					assertThat(rse.getReason()).isEqualTo("Product with id 999 not found");
+ 				});
++
++		verify(feignClient, times(1)).getById(999);
+ 	}
+ 
+ 	@Test
+@@ -94,6 +113,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+ 					assertThat(rse.getReason()).doesNotContain("/catalog-service/v1/products/productId/1");
+ 				});
++
++		verify(feignClient, times(1)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -109,6 +130,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getReason()).isEqualTo("Product service is currently unreachable, please try again later");
+ 					assertThat(rse.getReason()).doesNotContain("connection timed out");
+ 				});
++
++		verify(feignClient, times(3)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -123,6 +146,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getReason()).isEqualTo("Unable to process request due to an internal error");
+ 					assertThat(rse.getReason()).doesNotContain("/catalog-service/v1/products/productId/1");
+ 				});
++
++		verify(feignClient, times(1)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -139,6 +164,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+ 					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+ 				});
++
++		verify(feignClient, times(1)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -152,6 +179,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+ 					assertThat(rse.getReason()).isEqualTo("Unable to process request due to an internal error");
+ 				});
++
++		verify(feignClient, times(1)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -165,6 +194,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+ 					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+ 				});
++
++		verify(feignClient, times(1)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -180,6 +211,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+ 					assertThat(rse.getReason()).isEqualTo("Unable to process request due to an internal error");
+ 				});
++
++		verify(feignClient, times(1)).getById(1);
+ 	}
+ 
+ 	@Test
+@@ -205,6 +238,8 @@ class OrderServiceImplTest {
+ 		ILoggingEvent event = listAppender.list.get(0);
+ 		assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+ 		assertThat(event.getFormattedMessage()).contains("getById").contains("42").contains("500");
++
++		verify(feignClient, times(1)).getById(42);
+ 	}
+ 
+ 	@Test
+@@ -217,6 +252,8 @@ class OrderServiceImplTest {
+ 		ILoggingEvent event = listAppender.list.get(0);
+ 		assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+ 		assertThat(event.getFormattedMessage()).contains("getById").contains("42").contains("400");
++
++		verify(feignClient, times(1)).getById(42);
+ 	}
+ 
+ 	@Test
+@@ -229,6 +266,20 @@ class OrderServiceImplTest {
+ 		assertThat(result).isEqualTo(products);
+ 	}
+ 
++	@Test
++	void viewAllProducts_succeedsAfterRetries_whenProductServiceUnreachableTwiceThenSucceeds() {
++		List<Product> products = List.of(new Product("Mobile", 1, "Samsung", "Electronics"));
++		when(feignClient.getAllProducts())
++				.thenThrow(unreachableException("/catalog-service/v1/products"))
++				.thenThrow(unreachableException("/catalog-service/v1/products"))
++				.thenReturn(products);
++
++		List<Product> result = orderService.viewAllProducts();
++
++		assertThat(result).isEqualTo(products);
++		verify(feignClient, times(3)).getAllProducts();
++	}
++
+ 	@Test
+ 	void viewAllProducts_throwsServiceUnavailable_whenProductServiceUnreachable() {
+ 		when(feignClient.getAllProducts())
+@@ -242,6 +293,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getReason()).isEqualTo("Product service is currently unreachable, please try again later");
+ 					assertThat(rse.getReason()).doesNotContain("connection timed out");
+ 				});
++
++		verify(feignClient, times(3)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -256,6 +309,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+ 					assertThat(rse.getReason()).doesNotContain("/catalog-service/v1/products");
+ 				});
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -270,6 +325,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getReason()).isEqualTo("Unable to process request due to an internal error");
+ 					assertThat(rse.getReason()).doesNotContain("/catalog-service/v1/products");
+ 				});
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -287,6 +344,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isNotEqualTo(HttpStatus.NOT_FOUND);
+ 					assertThat(rse.getReason()).isEqualTo("Unable to process request due to an internal error");
+ 				});
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -303,6 +362,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+ 					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+ 				});
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -316,6 +377,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+ 					assertThat(rse.getReason()).isEqualTo("Unable to process request due to an internal error");
+ 				});
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -329,6 +392,8 @@ class OrderServiceImplTest {
+ 					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+ 					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+ 				});
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -354,6 +419,8 @@ class OrderServiceImplTest {
+ 		ILoggingEvent event = listAppender.list.get(0);
+ 		assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+ 		assertThat(event.getFormattedMessage()).contains("getAllProducts").contains("500");
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	@Test
+@@ -366,6 +433,8 @@ class OrderServiceImplTest {
+ 		ILoggingEvent event = listAppender.list.get(0);
+ 		assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+ 		assertThat(event.getFormattedMessage()).contains("getAllProducts").contains("400");
++
++		verify(feignClient, times(1)).getAllProducts();
+ 	}
+ 
+ 	private FeignException notFoundException(int productId) {

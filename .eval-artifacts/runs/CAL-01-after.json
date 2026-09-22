@@ -1,0 +1,98 @@
+{
+  "task_id": "CAL-01-after",
+  "run_type": "calibration",
+  "expected_path": [
+    "reviewer_strict",
+    "reviewer_lenient",
+    "orchestrator_conflict_resolution"
+  ],
+  "duration_seconds": 120,
+  "duration_note": "Value supplied by the human as the date bracket for just the reviewer rerun and escalation. The orchestrator did not itself bracket this window with `date`; its only recorded `date` reading (15:13:20 UTC) was taken later, at the start of the separate constructor-test follow-up.",
+  "cost_usd": 1.39,
+  "cost_note": "Session-cumulative /status reading of $1.39, taken shortly after the reviewer-rerun-and-escalation event. It is an upper bound, not an isolated cost of that event alone: it includes all session spend up to that point. The later $2.19 reading is deliberately NOT used, because it also includes unrelated work done afterward (writing this transcript, running checks, the scope_discipline correction). Same honest caveat as DEV-02-constructor-injection.json.",
+  "scope_note": "This transcript covers only the second reviewer invocation and the conflict escalation with the human's two decisions. The constructor-based test work that followed wiring_test_coverage's decision is a separate follow-up action and is deliberately excluded from this development task's evaluation.",
+  "subject": "commit 9ebb640 (order-service constructor injection)",
+  "events": [
+    {
+      "type": "orchestrator_step",
+      "step": 1,
+      "role": "orchestrator_context_boundary",
+      "output": "Goal: re-run reviewer_strict and reviewer_lenient on commit 9ebb640 with the same instruction as before; if they contradict on the same section, run the orchestrator_conflict_resolution step and escalate to the human without resolving it. Policy in effect: CLAUDE.md 'Reviewer Conflict Resolution' (do not pick a verdict, average, or settle in chat; add an orchestrator_conflict_resolution step; set escalated_to_human true; present the conflicting sections with both reviewers' full reasoning and wait for an explicit human decision). No longer in effect: the earlier instruction to leave the conflict unresolved with escalated_to_human false, which applied only to the before-fix capture (CAL-01-before.json)."
+    },
+    {
+      "type": "subagent",
+      "step": 2,
+      "role": "reviewer_strict",
+      "instruction": "Review commit 9ebb640's diff in the repo at /workspace (the constructor-injection change). Return your full review_items output.",
+      "output": "Review of commit 9ebb640 (constructor injection in ecom-order-service)\n\nLimitation: I only have file_read and codebase_search, so I could not run `git show 9ebb640`. I reviewed the current state of the affected files, not the literal diff. That limit affects the scope_discipline verdict.\n\nreview_items:\n[\n  {\"section\": \"constructor_injection_correctness\", \"verdict\": \"approve\"},\n  {\"section\": \"wiring_test_coverage\", \"verdict\": \"reject\"},\n  {\"section\": \"scope_discipline\", \"verdict\": \"reject\"}\n]\n\nconstructor_injection_correctness: approve\n- In /workspace/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java, `feignClient` is `private final`. A single public constructor takes `IProductServiceFeignClient` and assigns it.\n- In /workspace/ecom-order-service/src/main/java/com/productorder/controllers/OrderController.java, `orderService` is `private final`. A single public constructor takes `IOrderService` and assigns it.\n- Neither file has an @Autowired annotation or import. Spring injects a single-constructor bean implicitly, so none is needed.\n- The remaining @Autowired hits are in ecom-product-service, which is out of scope.\n- Minor: OrderController.java has a stray double blank line after the constructor.\n\nwiring_test_coverage: reject\n- No test specifically exercises the new constructor wiring. /workspace/ecom-order-service/src/test/java/com/productorder/service/OrderServiceImplTest.java uses `@Mock` and `@InjectMocks`. Mockito falls back to field or setter injection, so the same tests would pass against the old field-injected code.\n- OrderController has no test at all. A search of the test tree finds no references. Its new constructor is unverified: there is no `new OrderController(mock)` test, no @WebMvcTest, and no Spring slice test.\n- The context-load test EcomOrderServiceApplicationTests, cited in a prior run artifact, is incidental coverage. I did not read it, and it is not a targeted test of the new wiring.\n- To fix this, add tests that build each class through its constructor (`new OrderServiceImpl(mockClient)` and `new OrderController(mockService)`) and check delegation. A @WebMvcTest for the controller would also work.\n\nscope_discipline: reject\n- I cannot verify that only the intended files changed, because I had no diff access. The current file contents keep the retry constants, catch ordering and comments intact.\n- A prior run artifact, /workspace/.eval-artifacts/runs/CAL-01-before.json, records `git show --stat 9ebb640` as touching five files. Two were the source files. The other three were .eval-artifacts/runs/DEV-01.json, DEV-02-constructor-injection.json and DEV-02-constructor-injection.log. It also lists 96 insertions and 12 deletions. That stat is a second-hand record, not something I confirmed.\n- DEV-01.json belongs to a different task, so the commit bundles unrelated content.\n- The line-ending (CRLF) handling in the commit is also unverified.\n- I would flip this to approve if a direct `git show --stat` and diff confirm only the two source files changed and the bundled artifacts are accepted as intended.",
+      "review_items": [
+        {
+          "section": "constructor_injection_correctness",
+          "verdict": "approve"
+        },
+        {
+          "section": "wiring_test_coverage",
+          "verdict": "reject"
+        },
+        {
+          "section": "scope_discipline",
+          "verdict": "reject"
+        }
+      ]
+    },
+    {
+      "type": "subagent",
+      "step": 3,
+      "role": "reviewer_lenient",
+      "instruction": "Review commit 9ebb640's diff in the repo at /workspace (the constructor-injection change). Return your full review_items output.",
+      "output": "Limitation: I have only file_read and codebase_search, so I could not run `git show 9ebb640`. I reviewed the current state of the two affected files. For the changed-file list I relied on the recorded stat in /workspace/.eval-artifacts/runs/CAL-01-before.json and the run artifact /workspace/.eval-artifacts/runs/DEV-02-constructor-injection.json.\n\nreview_items:\n[\n  {\"section\": \"constructor_injection_correctness\", \"verdict\": \"approve\"},\n  {\"section\": \"wiring_test_coverage\", \"verdict\": \"approve\"},\n  {\"section\": \"scope_discipline\", \"verdict\": \"approve\"}\n]\n\nNo items were rejected. Notes:\n\n- constructor_injection_correctness\n  - In /workspace/ecom-order-service/src/main/java/com/productorder/controllers/OrderController.java, `orderService` is `private final` and assigned in a single public constructor.\n  - In /workspace/ecom-order-service/src/main/java/com/productorder/service/OrderServiceImpl.java, `feignClient` is `private final` and assigned in a single public constructor.\n  - Neither file has `@Autowired` or the `Autowired` import, and Spring injects a single constructor implicitly.\n  - The only remaining `@Autowired` uses are in ecom-product-service, which is a different module and out of scope.\n  - Cosmetic only: OrderController has a stray double blank line after the constructor.\n\n- wiring_test_coverage\n  - The recorded `./mvnw test` run showed 26 tests passing, including the Spring context-load test `EcomOrderServiceApplicationTests`, which would fail on a wiring problem.\n  - `OrderServiceImplTest` uses `@InjectMocks`, which also works with constructor injection.\n  - This is a mechanical, behavior-preserving refactor, so I did not require a dedicated constructor test or a controller test.\n  - I did not re-run the tests myself and am relying on the recorded result.\n\n- scope_discipline\n  - The recorded stat shows the two intended main files plus eval-artifact transcripts (DEV-01.json and the DEV-02 json and log). CLAUDE.md requires those transcripts.\n  - The retry constants and logic, catch ordering and comments in OrderServiceImpl are intact in the current file.\n  - The test file and ProductController were left alone.",
+      "review_items": [
+        {
+          "section": "constructor_injection_correctness",
+          "verdict": "approve"
+        },
+        {
+          "section": "wiring_test_coverage",
+          "verdict": "approve"
+        },
+        {
+          "section": "scope_discipline",
+          "verdict": "approve"
+        }
+      ]
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 4,
+      "role": "orchestrator_conflict_resolution",
+      "output": "Genuine same-section contradictions between reviewer_strict and reviewer_lenient on two sections: wiring_test_coverage (strict: reject, lenient: approve) and scope_discipline (strict: reject, lenient: approve). constructor_injection_correctness was approved by both and is not a conflict. Per CLAUDE.md Reviewer Conflict Resolution, the orchestrator did not pick, average, or settle either verdict. This was ESCALATED to the human with both reviewers' full reasoning, and the run was halted pending an explicit human decision. Neither reviewer had git access, so neither saw the literal diff; the orchestrator's own `git show --stat 9ebb640` (five files: OrderController.java, OrderServiceImpl.java, DEV-01.json, DEV-02-constructor-injection.json, DEV-02-constructor-injection.log; 96 insertions, 12 deletions) was offered to the human as a fact relevant to the scope question, not applied as a resolution.\n\nHUMAN DECISIONS (both made by the human, neither by the orchestrator):\n1. wiring_test_coverage: the human sided with reviewer_strict's concern and directed that the two constructor-based tests strict suggested be added (OrderServiceImpl and OrderController), verified with a real ./mvnw test. That work is a separate follow-up action and is excluded from this transcript.\n2. scope_discipline: the human ruled APPROVE; reviewer_lenient's verdict stands. reviewer_strict's rejection on this section rested on having no git tooling (it could not read the diff), which is recorded as a SEPARATE finding about the reviewer's tool grants, not folded into this cycle's fix. This cycle's fix addresses wiring_test_coverage only.\nTiming note: the scope_discipline ruling was communicated to the orchestrator in a later correction message, not in the human's first reply to the escalation, and is recorded here as stated by the human."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 5,
+      "role": "human_decision_record",
+      "output": "The human's first reply to the escalation directed adding the two constructor-based tests strict suggested (OrderServiceImpl and OrderController), verifying with a real ./mvnw test, and writing this transcript. A later correction from the human stated the scope_discipline ruling: approve, lenient's verdict stands, with strict's missing git tooling recorded as a separate finding. Both decisions are detailed in the orchestrator_conflict_resolution step. The orchestrator did not adopt either reviewer's verdict on its own; both outcomes are the human's."
+    }
+  ],
+  "conflicted_sections": [
+    "wiring_test_coverage",
+    "scope_discipline"
+  ],
+  "resolution_applied_by_orchestrator": null,
+  "final_verdicts_adopted": "set by the human, see human_decisions",
+  "escalated_to_human": true,
+  "human_approved": null,
+  "human_decisions": [
+    {
+      "section": "wiring_test_coverage",
+      "decision": "reject upheld: add constructor-based tests (separate follow-up, excluded from this transcript)"
+    },
+    {
+      "section": "scope_discipline",
+      "decision": "approve: reviewer_lenient's verdict stands; reviewer_strict's lack of git tooling recorded as a separate finding, not part of this cycle's fix"
+    }
+  ],
+  "separate_findings": [
+    "reviewer_strict and reviewer_lenient have no git tool (file_read and codebase_search only), so neither can read a commit diff"
+  ]
+}

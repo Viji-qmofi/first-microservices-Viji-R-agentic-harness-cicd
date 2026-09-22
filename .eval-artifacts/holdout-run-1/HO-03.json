@@ -1,0 +1,30 @@
+{
+  "task_id": "HO-03",
+  "expected_path": [
+    "implementer"
+  ],
+  "duration_seconds": 218,
+  "duration_note": "Wall clock from 17:38:17 UTC (first date) to 17:41:55 UTC (second date). Not adjusted for time spent waiting on the human, so it overstates automation latency. HO-03's own start was not separately bracketed.",
+  "cost_usd": 0.24,
+  "cost_note": "Supplied by the human after the run ('cost 0.24'). Not measured by the agent; /status was not bracketed before and after.",
+  "events": [
+    {
+      "type": "orchestrator_step",
+      "step": 1,
+      "role": "orchestrator_verification",
+      "output": "Ran context-boundary procedure and startup reads. .memory/SCOPE.md matched the project (E-Commerce Microservices Application). MEMORY_INDEX.md already lists decisions/decision-005.md covering bounded Feign retry. Read decision-005.md and OrderServiceImpl.java lines 20-64. Code has MAX_ATTEMPTS = 3 and RETRY_BACKOFF_MS = 200 (fixed), retrying only feign.RetryableException in callWithRetry(); matches decision-005. Review-by 2026-12-15 not passed. No new entry written, per the update-not-duplicate policy."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 2,
+      "role": "orchestrator_followup_finding",
+      "output": "decision-005.md still says 'Not yet committed', which is possibly stale: the git log shows commits 9c8d3e5 and 47b8555 for HO-02 work. Not confirmed, since git log for OrderServiceImpl.java was not run. Human instructed no edits to decision-005.md or MEMORY_INDEX.md mid-holdout-pass. Follow-up for after the pass."
+    }
+  ],
+  "planner_invoked": false,
+  "implementer_invoked": false,
+  "write_entry_called": false,
+  "files_modified": [],
+  "escalated_to_human": false,
+  "human_approved": null
+}
