@@ -91,7 +91,7 @@ def audit(
         f.write(json.dumps(record, sort_keys=True) + "\n")
 
 
-def _authorize(operation: str, calling_role: str, project_id: str | None = None) -> None:
+def _authorize(operation: str, calling_role: str, project_id: str | None = None, entry_id: str | None = None) -> None:
     """Deny-by-default role check against allow-list.json.
 
     Checks the calling_role the agent declares for itself, the same
@@ -106,7 +106,7 @@ def _authorize(operation: str, calling_role: str, project_id: str | None = None)
     """
     allowed_roles = ALLOW_LIST.get(operation, [])
     if calling_role not in allowed_roles:
-        audit(operation, project_id, None, None, calling_role, outcome="authorization_denied")
+        audit(operation, project_id, entry_id, None, calling_role, outcome="authorization_denied")
         raise ToolError(
             f"authorization_denied: role '{calling_role}' is not on the allow-list for "
             f"{operation}. Allowed roles: {allowed_roles or 'none'}. "
@@ -179,7 +179,7 @@ def write_entry(
 @mcp.tool
 def read_entry(project_id: str, entry_id: str, calling_role: str = "unknown") -> dict:
     """Read a single entry by ID, scoped to its project."""
-    _authorize("read_entry", calling_role, project_id)
+    _authorize("read_entry", calling_role, project_id, entry_id)
     validate_project_id(project_id)
     validate_nonempty(entry_id, "entry_id")
 
@@ -234,7 +234,7 @@ def update_entry(
     calling_role: str = "unknown",
 ) -> dict:
     """Update the content of an existing entry. Classification is preserved."""
-    _authorize("update_entry", calling_role, project_id)
+    _authorize("update_entry", calling_role, project_id, entry_id)
     validate_project_id(project_id)
     validate_nonempty(entry_id, "entry_id")
     validate_nonempty(content, "content")
@@ -266,7 +266,7 @@ def delete_entry(
     calling_role: str = "unknown",
 ) -> dict:
     """Soft-delete an entry. Marks deleted; does not remove backend evidence."""
-    _authorize("delete_entry", calling_role, project_id)
+    _authorize("delete_entry", calling_role, project_id, entry_id)
     validate_project_id(project_id)
     validate_nonempty(entry_id, "entry_id")
 
