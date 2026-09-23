@@ -12,3 +12,4 @@ ci-reports/
 ci-audit-trail-*.json
 audit-review-*.log
 .DS_Store
+.cache/
