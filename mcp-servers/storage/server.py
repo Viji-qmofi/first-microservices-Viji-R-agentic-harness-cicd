@@ -14,8 +14,16 @@ from fastmcp import FastMCP
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
+try:
+    from fastmcp.exceptions import ToolError
+except ImportError:
+    class ToolError(Exception):
+        pass
+
 DB_PATH = os.getenv("STORAGE_DB_PATH", "/memory/storage.db")
 AUDIT_PATH = os.getenv("STORAGE_AUDIT_PATH", "/memory/storage-audit.log")
+ALLOW_LIST_PATH = Path(__file__).parent / "allow-list.json"
+ALLOW_LIST = json.loads(ALLOW_LIST_PATH.read_text(encoding="utf-8"))
 
 ALLOWED_CLASSIFICATIONS = {"public", "internal", "confidential", "secret"}
 WRITE_CLASSIFICATIONS = {"public", "internal"}
@@ -62,10 +70,11 @@ def get_db() -> sqlite3.Connection:
 
 def audit(
     operation: str,
-    project_id: str,
+    project_id: str | None,
     entry_id: str | None,
     classification: str | None,
     calling_role: str | None,
+    outcome: str = "success",
 ) -> None:
     """Append one JSON audit record. Agents have no tool that edits this file."""
     ensure_parent(AUDIT_PATH)
@@ -76,9 +85,33 @@ def audit(
         "entry_id": entry_id,
         "classification": classification,
         "calling_role": calling_role or "unknown",
+        "outcome": outcome,
     }
     with open(AUDIT_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _authorize(operation: str, calling_role: str, project_id: str | None = None) -> None:
+    """Deny-by-default role check against allow-list.json.
+
+    Checks the calling_role the agent declares for itself, the same
+    self-declared signal coursetools' role checks have always used -- not
+    an environment-variable-based process identity. This project's roles
+    run as subagents sharing one Orchestrator container rather than each
+    getting a separate container/process, so a container-level identity
+    would be identical for every subagent and could not distinguish them.
+    See docs/governance-policy.md for the full reasoning. This still
+    closes a real gap: previously calling_role was accepted and logged
+    but never checked against anything at all.
+    """
+    allowed_roles = ALLOW_LIST.get(operation, [])
+    if calling_role not in allowed_roles:
+        audit(operation, project_id, None, None, calling_role, outcome="authorization_denied")
+        raise ToolError(
+            f"authorization_denied: role '{calling_role}' is not on the allow-list for "
+            f"{operation}. Allowed roles: {allowed_roles or 'none'}. "
+            f"See docs/governance-policy.md."
+        )
 
 
 def validate_project_id(project_id: str) -> None:
@@ -119,6 +152,7 @@ def write_entry(
     calling_role: str = "unknown",
 ) -> dict:
     """Write a new entry to the store. Requires a valid classification tag."""
+    _authorize("write_entry", calling_role, project_id)
     validate_project_id(project_id)
     validate_nonempty(entry_type, "entry_type")
     validate_nonempty(title, "title")
@@ -143,8 +177,9 @@ def write_entry(
 
 
 @mcp.tool
-def read_entry(project_id: str, entry_id: str) -> dict:
+def read_entry(project_id: str, entry_id: str, calling_role: str = "unknown") -> dict:
     """Read a single entry by ID, scoped to its project."""
+    _authorize("read_entry", calling_role, project_id)
     validate_project_id(project_id)
     validate_nonempty(entry_id, "entry_id")
 
@@ -156,12 +191,15 @@ def read_entry(project_id: str, entry_id: str) -> dict:
 
     if row is None:
         raise ValueError("no entry found for that project_id and entry_id")
+
+    audit("read_entry", project_id, entry_id, row["classification"], calling_role)
     return dict(row)
 
 
 @mcp.tool
-def list_entries(project_id: str, entry_type: str | None = None) -> list[dict]:
+def list_entries(project_id: str, entry_type: str | None = None, calling_role: str = "unknown") -> list[dict]:
     """List entries for a project. Metadata only; never returns full content."""
+    _authorize("list_entries", calling_role, project_id)
     validate_project_id(project_id)
 
     conn = get_db()
@@ -184,6 +222,7 @@ def list_entries(project_id: str, entry_type: str | None = None) -> list[dict]:
     finally:
         conn.close()
 
+    audit("list_entries", project_id, None, None, calling_role)
     return [dict(row) for row in rows]
 
 
@@ -195,6 +234,7 @@ def update_entry(
     calling_role: str = "unknown",
 ) -> dict:
     """Update the content of an existing entry. Classification is preserved."""
+    _authorize("update_entry", calling_role, project_id)
     validate_project_id(project_id)
     validate_nonempty(entry_id, "entry_id")
     validate_nonempty(content, "content")
@@ -226,6 +266,7 @@ def delete_entry(
     calling_role: str = "unknown",
 ) -> dict:
     """Soft-delete an entry. Marks deleted; does not remove backend evidence."""
+    _authorize("delete_entry", calling_role, project_id)
     validate_project_id(project_id)
     validate_nonempty(entry_id, "entry_id")
 
@@ -246,6 +287,17 @@ def delete_entry(
 
     audit("delete_entry", project_id, entry_id, classification, calling_role)
     return {"success": True}
+
+
+@mcp.tool
+def audit_read(limit: int = 50, calling_role: str = "unknown") -> dict:
+    """Read the tail of the audit log. Granted to orchestrator only."""
+    _authorize("audit_read", calling_role)
+    ensure_parent(AUDIT_PATH)
+    if not Path(AUDIT_PATH).exists():
+        return {"entries": []}
+    lines = Path(AUDIT_PATH).read_text(encoding="utf-8").splitlines()[-limit:]
+    return {"entries": [json.loads(line) for line in lines if line.strip()]}
 
 
 if __name__ == "__main__":
