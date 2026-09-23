@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import sqlite_vec
 from fastmcp import FastMCP
@@ -13,12 +15,21 @@ from sentence_transformers import SentenceTransformer
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
+try:
+    from fastmcp.exceptions import ToolError
+except ImportError:
+    class ToolError(Exception):
+        pass
+
 REFERENCE_DIR = os.getenv("RETRIEVAL_REFERENCE_DIR", "/memory/reference")
 EMBEDDING_MODEL = os.getenv("RETRIEVAL_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 EMBEDDING_DIM = 384
 SIMILARITY_THRESHOLD = float(os.getenv("RETRIEVAL_SIMILARITY_THRESHOLD", "0.65"))
 DEFAULT_CEILING = "internal"
 PROJECT_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
+AUDIT_PATH = os.getenv("RETRIEVAL_AUDIT_PATH", "/memory/retrieval-audit.log")
+ALLOW_LIST_PATH = Path(__file__).parent / "allow-list.json"
+ALLOW_LIST = json.loads(ALLOW_LIST_PATH.read_text(encoding="utf-8"))
 
 # Ordered from least to most sensitive. A value's index is its sensitivity rank.
 CLASSIFICATION_ORDER = ["public", "internal", "confidential", "secret"]
@@ -51,6 +62,40 @@ KEYWORD_STOPWORDS = frozenset(
 mcp = FastMCP("retrieval")
 
 
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def ensure_parent(path: str) -> None:
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+
+def audit(
+    calling_role: str,
+    project_id: str,
+    query: str,
+    requested_ceiling: str,
+    effective_ceiling: str | None,
+    result_count: int | None,
+    outcome: str,
+) -> None:
+    """Append one JSON audit record. Retrieval had no audit trail before this fix."""
+    ensure_parent(AUDIT_PATH)
+    record: dict[str, Any] = {
+        "timestamp": utc_now(),
+        "operation": "retrieve",
+        "calling_role": calling_role or "unknown",
+        "project_id": project_id,
+        "query": query[:200],
+        "requested_ceiling": requested_ceiling,
+        "effective_ceiling": effective_ceiling,
+        "result_count": result_count,
+        "outcome": outcome,
+    }
+    with open(AUDIT_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, sort_keys=True) + "\n")
+
+
 def validate_project_id(project_id: str) -> None:
     if not PROJECT_ID_PATTERN.match(project_id or ""):
         raise ValueError("project_id must contain only letters, numbers, and hyphens")
@@ -68,6 +113,35 @@ def validate_ceiling(classification_ceiling: str) -> None:
         raise ValueError(
             f"classification_ceiling must be one of {CLASSIFICATION_ORDER}"
         )
+
+
+def _authorize(calling_role: str, requested_ceiling: str, project_id: str, query: str) -> str:
+    """Deny-by-default role check; returns the effective ceiling to actually use.
+
+    Unlike storage's write operations, retrieve was previously self-declared
+    entirely -- classification_ceiling was whatever the caller sent, with
+    nothing tying it to the caller's role (see CLAUDE.md, Storage and
+    Retrieval Access). This closes that gap two ways: (1) a role not on
+    allow-list.json's "retrieve" map is denied outright; (2) a granted
+    role's effective ceiling is capped at min(what it asked for, what its
+    role actually allows) -- a role can request less than its maximum
+    (backward-compatible with existing agent instructions) but can never
+    get more than its own policy entry allows, regardless of what it
+    requests. This carries the same self-declaration limitation as
+    storage's _authorize() and coursetools' role check: calling_role is
+    still what the caller says it is, not a verified process identity --
+    see docs/governance-policy.md.
+    """
+    entry = ALLOW_LIST.get("retrieve", {}).get(calling_role)
+    if not entry or not entry.get("granted"):
+        audit(calling_role, project_id, query, requested_ceiling, None, None, outcome="authorization_denied")
+        raise ToolError(
+            f"authorization_denied: role '{calling_role}' is not granted retrieve access. "
+            f"See docs/governance-policy.md."
+        )
+    role_max_ceiling = entry["classification_ceiling"]
+    effective_rank = min(rank(requested_ceiling), rank(role_max_ceiling))
+    return CLASSIFICATION_ORDER[effective_rank]
 
 
 def validate_metadata_filters(filters: dict) -> None:
@@ -299,6 +373,7 @@ def retrieve(
     top_k: int = 3,
     classification_ceiling: str = DEFAULT_CEILING,
     metadata_filters: dict | None = None,
+    calling_role: str = "unknown",
 ) -> list[dict]:
     """Search the reference corpus by meaning within project and classification bounds."""
     if not isinstance(query, str) or not query.strip():
@@ -308,9 +383,11 @@ def retrieve(
     if top_k < 1 or top_k > 20:
         raise ValueError("top_k must be between 1 and 20")
 
+    effective_ceiling = _authorize(calling_role, classification_ceiling, project_id, query)
+
     filters = metadata_filters or {}
     validate_metadata_filters(filters)
-    ceiling_rank = rank(classification_ceiling)
+    ceiling_rank = rank(effective_ceiling)
     pool_size = max(top_k * 5, 20)
     query_vector = sqlite_vec.serialize_float32(embed(query))
 
@@ -350,10 +427,11 @@ def retrieve(
         if len(results) == top_k:
             break
 
-    if results:
-        return results
+    if not results:
+        results = keyword_search(query, project_id, top_k, ceiling_rank, filters)
 
-    return keyword_search(query, project_id, top_k, ceiling_rank, filters)
+    audit(calling_role, project_id, query, classification_ceiling, effective_ceiling, len(results), outcome="success")
+    return results
 
 
 model: SentenceTransformer
