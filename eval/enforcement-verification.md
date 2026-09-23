@@ -136,3 +136,61 @@ mcp__storage__audit_read(calling_role="orchestrator", limit=5)
 
 1. **`_authorize()` enforces the allow-list against a self-declared role, not a verified caller identity.** Direct test: the Orchestrator session successfully called `write_entry` with `calling_role="implementer"` and it succeeded normally, indistinguishable from the real `implementer` subagent calling it. Same architectural limitation as `coursetools`' role check (Exercise 3.1) and retrieval's `classification_ceiling` -- documented in `CLAUDE.md`, not hidden. `_authorize()` still closes a real gap (the previous version never checked `calling_role` against anything at all) -- it just isn't a stronger identity guarantee than what the rest of the system already has.
 2. **The first version of `_authorize()` didn't log which entry a denied call was targeting** (`entry_id: null` on denial records) -- found during this verification, fixed immediately (`_authorize()` now accepts and logs `entry_id` on every operation that has one available), not left as a deferred gap.
+
+## Layer 2: MCP Allow-List Enforcement (retrieval server)
+
+Before this fix, `retrieve()` had no `calling_role` parameter at all and no audit logging whatsoever -- `classification_ceiling` was a plain caller-supplied argument, fully self-declared, with nothing on the server tying it to the caller's actual role (`CLAUDE.md`'s own documented gap since Module 3). Unlike storage, this wasn't a decorative check that never fired -- there was no check of any kind.
+
+**Fix:** `calling_role` added to `retrieve()`; `_authorize()` denies any role absent from `allow-list.json`'s `retrieve` map outright, and for a granted role, the *effective* ceiling actually used is `min(what the caller requested, what that role's own policy allows)` -- a role can request less than its maximum (staying compatible with existing agent instructions like `planner.md`'s "always pass internal") but can never receive more, regardless of what it asks for. Real audit logging added, matching storage's pattern (previously absent entirely).
+
+### Test 1 -- a granted role requesting more than its actual maximum
+
+**Command:**
+```
+mcp__retrieval__retrieve(calling_role="planner", project_id="proj-lessons", query="cost tracking", classification_ceiling="confidential")
+```
+
+**Output:** `{"result":[]}`
+
+**Audit log entry:**
+```json
+{"calling_role":"planner","effective_ceiling":"internal","outcome":"success","requested_ceiling":"confidential","result_count":0,...}
+```
+
+**Result:** the request for `confidential` was silently capped to `internal` (planner's real maximum) -- the confidential document (`agentic-run-cost-tracking.md`, confirmed present in the corpus on this exact topic) was correctly excluded. Not an error -- a quiet reduction, distinguishable from "no matches" only by checking `requested_ceiling` vs. `effective_ceiling` in the audit log. Documented as a minor observability limitation, not a security gap -- the actual boundary held.
+
+### Test 2 -- a role with no grant at all
+
+**Command:**
+```
+mcp__retrieval__retrieve(calling_role="implementer", project_id="proj-lessons", query="cost tracking", classification_ceiling="internal")
+```
+
+**Output:**
+```
+authorization_denied: role 'implementer' is not granted retrieve access. See docs/governance-policy.md.
+```
+
+**Audit log entry:**
+```json
+{"calling_role":"implementer","effective_ceiling":null,"outcome":"authorization_denied","requested_ceiling":"internal","result_count":null,...}
+```
+
+**Result:** blocked outright, before any ceiling logic even ran -- correct, since `implementer` was never granted `retrieve` at all, regardless of how conservative the requested ceiling was.
+
+### Test 3 -- positive control, a role actually entitled to confidential material
+
+**Command:**
+```
+mcp__retrieval__retrieve(calling_role="orchestrator", project_id="proj-lessons", query="cost tracking", classification_ceiling="confidential")
+```
+
+**Result:** `agentic-run-cost-tracking.md` returned as the sole result, `effective_ceiling: "confidential"` in the audit log. Confirms the cap is role-specific, not a blanket restriction -- `orchestrator`'s real, policy-granted maximum is honored correctly.
+
+Together, the three tests distinguish all three real outcomes clearly in the audit log: denied outright (`implementer`), capped to empty (`planner`), and genuinely granted (`orchestrator`).
+
+### Known limitations, found during this verification
+
+1. **Same self-declaration limitation as storage and coursetools.** `_authorize()` enforces the allow-list against whatever `calling_role` a caller states -- not a verified process identity. Documented in `docs/governance-policy.md`, not hidden.
+2. **A capped request and a genuinely empty result are indistinguishable without checking the audit log.** `outcome: "success"` with `result_count: 0` covers both cases; only `requested_ceiling` vs. `effective_ceiling` reveals which one occurred. Worth a future improvement (e.g., a `ceiling_was_capped: true/false` field), not fixed in this cycle.
+3. **A tangential finding, investigated and correctly attributed, not a new bug:** a short query ("cost tracking") fell back to keyword search rather than vector search for this document, surfacing one semantically unrelated result alongside the correct one. Confirmed via direct testing that the embedding path itself works correctly (a differently-phrased query on the same document scored well under vector search in Module 3.2's original ground-truth testing, Q1/Q6). This is the same already-documented keyword-fallback precision limitation from `retrieval-quality-report.md`'s Q5 finding, not a regression introduced by this Layer 2 work.
