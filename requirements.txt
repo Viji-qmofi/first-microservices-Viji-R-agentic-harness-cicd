@@ -5,3 +5,5 @@ starlette
 uvicorn
 sqlite-vec
 sentence-transformers
+pytest
+pytest-json-report
