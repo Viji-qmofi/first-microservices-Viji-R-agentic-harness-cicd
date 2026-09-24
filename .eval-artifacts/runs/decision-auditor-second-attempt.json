@@ -7,6 +7,7 @@
   "duration_seconds": null,
   "cost_usd": null,
   "measurement_note": "No `date` or `/status` bracket was taken around this run, so I left duration_seconds and cost_usd as null instead of backfilling them. The only timing available is partial: the harness reports the decision-auditor subagent itself took 41.29s (duration_ms 41290, 30,368 subagent tokens, 10 tool uses including the hand-back), and its log timestamps run 2026-09-24T03:06:12.605Z to 03:06:51.240Z. That excludes the orchestrator's verification, the human Q&A and the commit, so it is not the task duration. There's no dollar figure for this window.",
+  "audit_log_note": "This run has no companion .log file (unlike runs such as DEV-01.log or CAL-01-before.log). The correction was made with the coursetools `file_write` tool, not through a storage-server operation such as `write_entry` or `update_entry`. Only the storage server writes to `.memory/storage/storage-audit.log`; `mcp-servers/coursetools/coursetools_server.py` has no audit logging (checked by grepping for 'audit' and 'log': the only matches are comments about the decision-auditor path exception). So there's no audit-log entry to attach for this write. The evidence is the subagent's own tool-call record (in events) and the git diff/commit 5b4d764. This is a real gap: an edit to .memory/project/ made through coursetools leaves no server-side audit trail, only git history.",
   "subagent_only_timing": {
     "duration_ms": 41290,
     "subagent_tokens": 30368,
