@@ -13,6 +13,7 @@ jobs:
     outputs:
       changed-files: ${{ steps.classify.outputs.changed-files }}
       requires-governed-check: ${{ steps.classify.outputs.requires-governed-check }}
+      requires-eval: ${{ steps.classify.outputs.requires-eval }}
       touches-policy: ${{ steps.classify.outputs.touches-policy }}
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +36,10 @@ jobs:
           # Files that affect agent behavior, tool contracts, evals, or governance.
           if echo "$CHANGED" | grep -qE '^(\.agents/|\.skills/|mcp-servers/|eval/|docs/governance-policy\.md|docs/routing-and-tool-grant-map\.md|scripts/run-agent\.sh)'; then
             echo "requires-governed-check=true" >> "$GITHUB_OUTPUT"
+            echo "requires-eval=true" >> "$GITHUB_OUTPUT"
           else
             echo "requires-governed-check=false" >> "$GITHUB_OUTPUT"
+            echo "requires-eval=false" >> "$GITHUB_OUTPUT"
           fi
 
           # Policy/access-control-relevant files.
@@ -110,6 +113,40 @@ jobs:
           retention-days: 90
           if-no-files-found: ignore
 
+  eval-gate:
+    name: Evaluation Harness
+    runs-on: ubuntu-latest
+    needs: [change-type-check, policy-gate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build course container
+        if: needs.change-type-check.outputs.requires-eval == 'true'
+        run: docker build -t agentic_engineer_4 .
+
+      - name: Run evaluation harness (regression check)
+        if: needs.change-type-check.outputs.requires-eval == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          mkdir -p ci-artifacts
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspace:ro \
+            -v "$GITHUB_WORKSPACE/ci-artifacts":/workspace/ci-artifacts \
+            -w /workspace \
+            -e ANTHROPIC_API_KEY \
+            agentic_engineer_4 \
+            python3 scripts/run-eval-gate.py
+
+      - name: Upload evaluation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: ci-artifacts/*.json
+          retention-days: 90
+          if-no-files-found: ignore       
+
   advisory-review:
     name: Advisory Code Review
     runs-on: ubuntu-latest
@@ -150,7 +187,7 @@ jobs:
   audit-trail:
     name: Audit Trail
     runs-on: ubuntu-latest
-    needs: [change-type-check, policy-gate, governed-file-gate, advisory-review]
+    needs: [change-type-check, policy-gate, governed-file-gate, eval-gate, advisory-review]
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -176,6 +213,7 @@ jobs:
             --requires-governed-check "${{ needs.change-type-check.outputs.requires-governed-check }}" \
             --policy-result "${{ needs.policy-gate.result }}" \
             --governed-result "${{ needs.governed-file-gate.result }}" \
+            --eval-result "${{ needs.eval-gate.result }}" \
             --review-result "${{ needs.advisory-review.result }}" \
             --artifacts ci-artifacts
 

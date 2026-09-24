@@ -35,6 +35,7 @@ def main() -> int:
     parser.add_argument("--requires-governed-check", default="false")
     parser.add_argument("--policy-result", default="unknown")
     parser.add_argument("--governed-result", default="unknown")
+    parser.add_argument("--eval-result", default="unknown")
     parser.add_argument("--review-result", default="unknown")
     parser.add_argument("--artifacts", default="ci-artifacts")
     args = parser.parse_args()
@@ -43,6 +44,8 @@ def main() -> int:
 
     policy_report = load_json(artifact_dir / "policy-report.json", {})
     governed_report = load_json(artifact_dir / "governed-file-report.json", {})
+    deterministic_report = load_json(artifact_dir / "deterministic-report.json", {})
+    rubric_report = load_json(artifact_dir / "rubric-report.json", {})
     review_audit = load_json(artifact_dir / "review-audit.json", {})
     review_output = load_text(artifact_dir / "review-output.md", "")
 
@@ -61,11 +64,14 @@ def main() -> int:
         "results": {
             "policy_gate": args.policy_result,
             "governed_file_gate": args.governed_result,
+            "eval_gate": args.eval_result,
             "advisory_review": args.review_result,
         },
         "reports_present": {
             "policy_report": bool(policy_report),
             "governed_file_report": bool(governed_report),
+            "deterministic_report": bool(deterministic_report),
+            "rubric_report": bool(rubric_report),
             "review_audit": bool(review_audit),
             "review_output": bool(review_output),
         },
@@ -76,6 +82,17 @@ def main() -> int:
         "governed_report_summary": {
             "exitcode": governed_report.get("exitcode"),
             "tests": len(governed_report.get("tests", [])),
+        },
+        "deterministic_report_summary": {
+            "exitcode": deterministic_report.get("exitcode"),
+            "transcript": deterministic_report.get("transcript"),
+            "mode": deterministic_report.get("mode"),
+        },
+        "rubric_report_summary": {
+            "exitcode": rubric_report.get("exitcode"),
+            "transcript": rubric_report.get("transcript"),
+            "mode": rubric_report.get("mode"),
+            "skipped": rubric_report.get("skipped", False),
         },
         "review_audit": review_audit,
     }
