@@ -120,6 +120,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify secret is present
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: echo "key length: ${#ANTHROPIC_API_KEY}"
+
       - name: Build course container
         if: needs.change-type-check.outputs.requires-eval == 'true'
         run: docker build -t agentic_engineer_4 .
