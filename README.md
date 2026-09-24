@@ -66,7 +66,7 @@ The Orchestrator (the top-level Claude Code session) delegates to these per the 
 
 ## The Evaluation Harness
 
-Two layers (`eval/`):
+### Two layers (`eval/`):
 
 1. **Deterministic checks** (`eval/test_deterministic.py`) -- structural, objective: role routing, tool grants, classification enforcement, audit-log consistency, budgets. Must pass 100% before the rubric suite runs at all.
 2. **Rubric-scored suite** (`eval/test_rubric_suite.py`, `eval/rubric.json`) -- an LLM-as-judge scores correctness, task adherence, groundedness, and clarity, each against its own pass floor (no averaging across dimensions).
