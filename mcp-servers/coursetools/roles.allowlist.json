@@ -1,7 +1,7 @@
 {
-  "file_read": ["planner", "implementer", "reviewer", "tester"],
+  "file_read": ["planner", "implementer", "reviewer", "tester", "decision-auditor"],
   "file_write": ["implementer"],
-  "codebase_search": ["planner", "implementer", "reviewer"],
+  "codebase_search": ["planner", "implementer", "reviewer", "decision-auditor"],
   "shell": [],
   "test_runner": ["tester"],
   "task_tracker": [],

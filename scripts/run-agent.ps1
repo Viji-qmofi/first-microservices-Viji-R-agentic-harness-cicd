@@ -37,7 +37,7 @@ switch ($Role) {
     { $_ -in 'implementer', 'orchestrator' } {
         $WorkspaceMode = 'rw'
     }
-    { $_ -in 'planner', 'reviewer', 'spring-boot-reviewer' } {
+    { $_ -in 'planner', 'reviewer', 'spring-boot-reviewer', 'decision-auditor' } {
         $WorkspaceMode = 'ro'
     }
     default {
