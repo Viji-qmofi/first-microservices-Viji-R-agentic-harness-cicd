@@ -194,3 +194,42 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 **Conditions for human checkpoint:** Before any implemented change is committed (unconditional); before proceeding past a plan that changes externally-visible behavior; before proceeding past an unresolved reviewer conflict, which must escalate rather than self-resolve (CLAUDE.md).  
 **Reason:** Orchestration coordinates other roles and is largely reversible within the container, but the commit point, externally-visible behavior changes, and unresolved conflicts are exactly the moments this system has had real near-misses around -- human accountability belongs there specifically.  
 **Container permissions:** workspace read-write, memory mounted
+
+## Role: decision-auditor
+
+**Version:** v1
+**Defined in:** `agents/decision-auditor.md`
+
+### MCP server and operation access
+
+| Operation | Server | Granted | Justification / Denial reason |
+|---|---|---|---|
+| write_entry | storage | NO | Creating a new lesson/decision entry is implementer's job. Granting this role write_entry too would blur two roles into doing the same thing through two different paths. |
+| read_entry | storage | YES | Must read an existing record before it can check or correct it. |
+| list_entries | storage | YES | Must be able to survey what records exist for a project before auditing them. |
+| update_entry | storage | YES | This role's entire purpose. First role ever granted this operation -- previously denied to every role (see Known Gap below). |
+| delete_entry | storage | NO | No established need; correcting a stale record is not the same as removing it. |
+| audit_read | storage | NO | Audit inspection is owned by the orchestrator. |
+| retrieve | retrieval | NO | This role's job is checking a record against real git/build state, not researching prior lessons. Granting retrieve risks it "correcting" a record based on a plausible-sounding prior lesson instead of verified current reality -- the exact failure mode this role exists to prevent, not commit itself. |
+
+**Known gap this role closes:** `update_entry` was granted to *no* role at all until now -- confirmed directly during red-team Prompt 4 (`eval/red-team-results.md`), where the Orchestrator found no mechanical way to correct an existing entry existed for anyone. `decision-auditor` is the first role given this operation, scoped narrowly to exactly the case it's needed for.
+
+**Evidence motivating this role:** `decision-005.md`'s "Not yet done: change has not been committed" line was independently rediscovered as stale four separate times (holdout tasks HO-01, HO-03, HO-05, and again during the Module 4 activation exercise) by four different agents, none of whom had the job of noticing or fixing it -- each just stumbled onto it mid-unrelated-task. `decision-001.md`'s placeholder review date is a live, still-uncorrected instance of the same pattern. This is the single most evidence-grounded gap in the project's memory system.
+
+### Skill activation scope
+
+| Skill | Activation permitted | Reason if denied |
+|---|---|---|
+| summarize-session | YES | May summarize its own audit findings. |
+
+### Data classification ceiling
+
+**Maximum level:** N/A (retrieve denied)
+**Reason:** Does not call the retrieval server at all -- see denial reasoning above.
+
+### Autonomy level
+
+**Level:** low
+**Conditions for human checkpoint:** Any correction to an existing entry should be flagged in the run summary for human awareness, same as any other change to project memory -- this role does not get a lighter review standard just because its job is "fixing," not "creating."
+**Reason:** Silently correcting records, even accurately, removes the human's ability to notice a pattern of staleness (as this role's own motivating evidence shows -- four *separate* people/sessions missed the same thing before anyone acted on it).
+**Container permissions:** workspace read-only, memory omitted (same as `reviewer`/`planner` -- it corrects records only through the governed `update_entry` operation, never by editing files directly).
