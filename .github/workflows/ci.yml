@@ -67,7 +67,7 @@ jobs:
             -v "$GITHUB_WORKSPACE/ci-artifacts":/reports \
             -w /workspace \
             agentic_engineer_4 \
-            python -m pytest eval/test_policy.py -v \
+            python3 -m pytest eval/test_policy.py -v \
               --json-report \
               --json-report-file=/reports/policy-report.json
 
@@ -100,7 +100,7 @@ jobs:
             -v "$GITHUB_WORKSPACE/ci-artifacts":/reports \
             -w /workspace \
             agentic_engineer_4 \
-            python -m pytest eval/test_governed_files.py -v \
+            python3 -m pytest eval/test_governed_files.py -v \
               --json-report \
               --json-report-file=/reports/governed-file-report.json
 
@@ -177,7 +177,7 @@ jobs:
             -e ANTHROPIC_API_KEY \
             -e CHANGED_FILES="${{ needs.change-type-check.outputs.changed-files }}" \
             agentic_engineer_4 \
-            python scripts/run-reviewer.py
+            python3 scripts/run-reviewer.py
 
           cp -r ci-out/. ci-artifacts/ 2>/dev/null || true
 
