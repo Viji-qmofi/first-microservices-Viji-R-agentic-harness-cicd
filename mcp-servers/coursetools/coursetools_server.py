@@ -21,7 +21,9 @@ SERVER_NAME = "coursetools"
 mcp = FastMCP(SERVER_NAME)
 
 ROOT = Path(os.environ.get("COURSETOOLS_ROOT", ".")).resolve()
-ALLOWLIST_PATH = Path(os.environ.get("COURSETOOLS_ALLOWLIST", "mcp/roles.allowlist.json"))
+ALLOWLIST_PATH = Path(
+    os.environ.get("COURSETOOLS_ALLOWLIST", str(Path(__file__).parent / "roles.allowlist.json"))
+)
 
 DEFAULT_ALLOWLIST: dict[str, list[str]] = {
     "file_read": ["planner", "implementer", "reviewer", "tester", "orchestrator"],
@@ -87,7 +89,12 @@ def file_write(role: str, path: str, content: str) -> str:
     authorize("file_write", role)
     target = safe_path(path)
     memory_root = (ROOT / ".memory").resolve()
-    if target == memory_root or memory_root in target.parents:
+    project_root = memory_root / "project"
+    in_memory = target == memory_root or memory_root in target.parents
+    in_project = project_root in target.parents
+    # decision-auditor may correct files under .memory/project/; the rest of .memory/
+    # (storage, reference, knowledge) stays blocked for file_write regardless of role.
+    if in_memory and not (in_project and role == "decision-auditor"):
         raise PermissionError(
             f"file_write cannot access '{path}': it falls under .memory/. Memory "
             "content must go through the storage or retrieval MCP servers, not the "
