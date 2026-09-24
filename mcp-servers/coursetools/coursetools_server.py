@@ -68,11 +68,15 @@ def file_read(role: str, path: str) -> str:
     target = safe_path(path)
     memory_root = (ROOT / ".memory").resolve()
     knowledge_root = memory_root / "knowledge"
+    project_root = memory_root / "project"
     in_memory = target == memory_root or memory_root in target.parents
     in_knowledge = target == knowledge_root or knowledge_root in target.parents
+    in_project = project_root in target.parents
     # .memory/knowledge/ is the read-only standards layer and stays directly readable;
-    # the rest of .memory/ (storage, reference, project) must go through the MCP servers.
-    if in_memory and not in_knowledge:
+    # decision-auditor may read files under .memory/project/ (matching its file_write
+    # exception). The rest of .memory/ (storage, reference, and project for every
+    # other role) must go through the MCP servers.
+    if in_memory and not in_knowledge and not (in_project and role == "decision-auditor"):
         raise PermissionError(
             f"file_read cannot access '{path}': it falls under .memory/. Memory "
             "content must go through the storage or retrieval MCP servers, not the "
