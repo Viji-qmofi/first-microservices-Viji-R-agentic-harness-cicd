@@ -1,7 +1,7 @@
 # ADR-001: Convert orchestrator_test result interpretation from LLM judgment to deterministic code
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 
@@ -24,6 +24,6 @@ Measured benefits: ~264x lower latency and 100% token-cost elimination for a que
 ## Evidence
 
 - Classification: docs/step-classification.md, orchestrator_test entry, strong candidate.
-- Before-conversion measurement: module3_doc/calibration-log.md, "orchestrator_test deterministic conversion" entry, 2026-09-25 (commit [before/after log commit SHA]).
-- After-conversion measurement in isolation: same log entry.
-- Integrated end-to-end regression check: pending -- ADR remains Proposed until this is recorded.
+- Before-conversion measurement: module3_doc/calibration-log.md, "orchestrator_test deterministic conversion" entry, 2026-09-25.
+- After-conversion measurement in isolation: same log entry -- ~264x latency reduction, 100% token-cost elimination, byte-identical output confirmed via diff.
+- Integrated end-to-end regression check: module3_doc/calibration-log.md, "orchestrator_test conversion, end-to-end regression check" entry, 2026-09-25 -- 4 real orchestrated runs (2 holdout reruns, 2 genuine new-diff development tasks), no regression attributable to the conversion. All findings traced to pre-existing, unrelated gaps (retrieval citation fidelity, a third independent instance of DEV-02's documented gap) or measurement discipline, not to the converted step's own behavior.
