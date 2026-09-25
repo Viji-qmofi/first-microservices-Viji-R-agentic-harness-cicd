@@ -120,12 +120,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify secret is present
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          echo "key length: ${#ANTHROPIC_API_KEY}"
-
+    
       - name: Build course container
         if: needs.change-type-check.outputs.requires-eval == 'true'
         run: docker build -t agentic_engineer_4 .
@@ -190,10 +185,42 @@ jobs:
           retention-days: 90
           if-no-files-found: ignore
 
+  pipeline-integrity:
+    name: Pipeline Integrity Check
+    runs-on: ubuntu-latest
+    # No `needs:` deliberately -- this job must run regardless of whether
+    # other jobs succeed, fail, or get skipped, since its whole purpose is
+    # catching a weakened gate. Depending on another job's success would
+    # mean weakening that exact job could skip this check too.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check dependency
+        run: pip install pyyaml
+
+      - name: Run pipeline integrity check
+        run: |
+          mkdir -p ci-artifacts
+          python3 scripts/check-pipeline-integrity.py
+        # Gating: no continue-on-error, default false is what makes this fail for real.
+
+      - name: Upload integrity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrity-report
+          path: ci-artifacts/integrity-report.json
+          retention-days: 90
+          if-no-files-found: ignore          
+
   audit-trail:
     name: Audit Trail
     runs-on: ubuntu-latest
-    needs: [change-type-check, policy-gate, governed-file-gate, eval-gate, advisory-review]
+    needs: [change-type-check, policy-gate, governed-file-gate, eval-gate, pipeline-integrity, advisory-review]
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -221,6 +248,7 @@ jobs:
             --governed-result "${{ needs.governed-file-gate.result }}" \
             --eval-result "${{ needs.eval-gate.result }}" \
             --review-result "${{ needs.advisory-review.result }}" \
+            --integrity-result "${{ needs.pipeline-integrity.result }}" \
             --artifacts ci-artifacts
 
       - name: Upload audit trail

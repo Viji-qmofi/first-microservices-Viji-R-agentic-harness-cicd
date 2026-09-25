@@ -36,6 +36,7 @@ def main() -> int:
     parser.add_argument("--policy-result", default="unknown")
     parser.add_argument("--governed-result", default="unknown")
     parser.add_argument("--eval-result", default="unknown")
+    parser.add_argument("--integrity-result", default="unknown")
     parser.add_argument("--review-result", default="unknown")
     parser.add_argument("--artifacts", default="ci-artifacts")
     args = parser.parse_args()
@@ -46,6 +47,7 @@ def main() -> int:
     governed_report = load_json(artifact_dir / "governed-file-report.json", {})
     deterministic_report = load_json(artifact_dir / "deterministic-report.json", {})
     rubric_report = load_json(artifact_dir / "rubric-report.json", {})
+    integrity_report = load_json(artifact_dir / "integrity-report.json", {})
     review_audit = load_json(artifact_dir / "review-audit.json", {})
     review_output = load_text(artifact_dir / "review-output.md", "")
 
@@ -65,6 +67,7 @@ def main() -> int:
             "policy_gate": args.policy_result,
             "governed_file_gate": args.governed_result,
             "eval_gate": args.eval_result,
+            "pipeline_integrity": args.integrity_result,
             "advisory_review": args.review_result,
         },
         "reports_present": {
@@ -72,6 +75,7 @@ def main() -> int:
             "governed_file_report": bool(governed_report),
             "deterministic_report": bool(deterministic_report),
             "rubric_report": bool(rubric_report),
+            "integrity_report": bool(integrity_report),
             "review_audit": bool(review_audit),
             "review_output": bool(review_output),
         },
@@ -94,6 +98,12 @@ def main() -> int:
             "mode": rubric_report.get("mode"),
             "skipped": rubric_report.get("skipped", False),
         },
+        "integrity_report_summary": {
+            "exitcode": integrity_report.get("exitcode"),
+            "errors": integrity_report.get("errors", []),
+            "checks_run": integrity_report.get("checks_run", []),
+        },
+
         "review_audit": review_audit,
     }
 
