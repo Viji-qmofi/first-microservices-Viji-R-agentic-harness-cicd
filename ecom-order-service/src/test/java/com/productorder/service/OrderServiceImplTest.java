@@ -145,6 +145,25 @@ class OrderServiceImplTest {
 	}
 
 	@Test
+	void placeOrder_succeedsOnSecondAttempt_whenProductServiceUnreachableOnceThenSucceeds() {
+		Product product = new Product("Mobile", 1, "Samsung", "Electronics");
+		when(feignClient.getById(1))
+				.thenThrow(unreachableException("/catalog-service/v1/products/productId/1"))
+				.thenReturn(product);
+
+		ResponseEntity<String> result = orderService.placeOrder(1);
+
+		assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(result.getBody()).isEqualTo("Order placed successfully for Mobile");
+		// Loop must stop on the successful second attempt -- no third call.
+		verify(feignClient, times(2)).getById(1);
+		// Exactly one backoff (between attempt 1 and 2), none after the success.
+		assertThat(recordedSleeps).isEqualTo(List.of(200L));
+		// WARN fires only once retries are exhausted; a recovered call logs nothing.
+		assertThat(listAppender.list).isEmpty();
+	}
+
+	@Test
 	void placeOrder_throwsNotFound_whenProductDoesNotExist() {
 		when(feignClient.getById(999)).thenThrow(notFoundException(999));
 
