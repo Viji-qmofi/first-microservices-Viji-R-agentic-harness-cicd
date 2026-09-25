@@ -78,3 +78,34 @@ Per the lab's Step 10: all six locked tasks from `module3_doc/holdout-task-set.m
 8. Establish a reliable cost-isolation method for long-running interactive sessions -- the recurring upper-bound problem needs a structural fix (e.g., a wrapper that checks `/status` automatically at session start), not another reminder.
 9. Decide whether `reviewer_strict`/`reviewer_lenient` become a permanent part of the system or stay temporary/removed now that this lab is complete.
 10. Decide whether a failed, tool-blocked subagent attempt should be its own transcript event type, distinct from a real subagent run, so routing checks can reason about the difference.
+
+
+## Entry: orchestrator_test deterministic conversion (2026-09-25)
+
+### Before-conversion baseline (agentic)
+
+- Input: holdout-maven-output.txt (real DEV-02-shaped output, 36 tests, clean pass).
+- 3 runs, same fresh session, same prompt each time, bracketed 18:18:44-18:19:46 UTC.
+- Average cycle time: ~14s/run (42s total API duration / 3).
+- Average token cost: ~$0.173/run ($0.52 total / 3).
+- Predictability: conclusion (pass, 36 tests) was consistent across all 3 runs. Full response text was not captured for structural comparison -- a real, acknowledged limitation of this measurement, not verified with the same rigor as the script's after-measurement.
+- Audit clarity: understanding this step's behavior requires reading the Orchestrator's own instructions plus a session transcript.
+
+### After-conversion measurement (script, in isolation)
+
+- Same input: holdout-maven-output.txt.
+- 3 runs: real 0.050s, 0.055s, 0.055s. Average: ~0.053s/run.
+- Token cost: $0/run (no language model involved).
+- Predictability: `diff result_run1.json result_run2.json` and `diff result_run1.json result_run3.json` both returned empty -- byte-identical output confirmed across all 3 runs, not merely a consistent conclusion.
+- Audit clarity: full behavior readable in scripts/parse_test_result_deterministic.py (under 90 lines).
+- Unit tests: 5/5 passing, including the named noisy-output edge case (eval/test_deterministic_step.py) and a genuine-failure case, confirmed in both a fresh sandbox and the real project container.
+
+### Comparison
+
+- Latency: ~264x faster (14s -> 0.053s average).
+- Cost: 100% token-cost elimination ($0.173/run -> $0/run).
+- Predictability: script proven byte-identical across runs; agentic conclusion was consistent but full-text variance was not measured.
+- Quality/regression: no pre-existing rubric dimension scored this step's own narrative output directly (rubric dimensions score planner/implementer/review steps, not this verification step) -- regression check deferred to the integrated end-to-end run, per the ADR.
+
+No regression found in isolation. Proceeding to integration.
+
