@@ -13,3 +13,5 @@ ci-audit-trail-*.json
 audit-review-*.log
 .DS_Store
 .cache/
+ecom-order-service/maven-output.txt
+ecom-order-service/test-result.json
