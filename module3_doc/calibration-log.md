@@ -109,3 +109,31 @@ Per the lab's Step 10: all six locked tasks from `module3_doc/holdout-task-set.m
 
 No regression found in isolation. Proceeding to integration.
 
+## Entry: orchestrator_test conversion, end-to-end regression check (2026-09-25)
+
+Per ADR-001, integration required a real end-to-end regression check before acceptance -- not just the isolated before/after measurement already recorded. Ran 4 real orchestrated tasks with the integrated deterministic script in place: 2 reruns of prior holdout tasks (HO-04, HO-06), 2 genuinely new development tasks.
+
+### Runs
+
+1. **HO-04 rerun** (productId validation) -- verification-only; the requested validation already existed from the activation-exercise port. Confirmed via independent git diff -w check, not taken on planner's word. orchestrator_test integration confirmed clean: captured Maven output to a file, invoked the script, read the structured result, no raw-output narration. transcript: .eval-artifacts/runs/regression-check-ho04-rerun.json.
+2. **HO-06 rerun** (retry-config endpoint) -- also verification-only, same reason (already in the port). Same clean integration confirmed.
+3. **Fail-once-then-succeed test** (OrderServiceImplTest, placeOrder) -- genuine new implementer diff, closing the required follow-up from HO-05's reviewer_strict finding (module3_doc/calibration-log.md). Real plan -> review -> implement -> diff review -> orchestrator_test -> human approval -> commit e9e2fba. transcript: .eval-artifacts/runs/dev-retry-fail-once-then-succeed.json.
+4. **viewAllProducts mixed-exception-type test** -- second genuine new implementer diff, closing reviewer_strict's second HO-05 finding. Same full real loop. transcript: .eval-artifacts/runs/dev-viewallproducts-retry-stop-test.json.
+
+Two real transcript-authoring defects were found and fixed during this pass, both transcript-writing issues, not conversion regressions: (a) run 3's `cost_usd` was written as the string `"not_measured"` instead of JSON `null`, causing an unhandled Python TypeError in check_cost rather than a clean fail -- corrected to `null`; (b) run 4's `expected_path` listed `implementer` before `orchestrator_plan_review`, the reverse of what actually happened and of the established review-before-implementation convention -- corrected.
+
+### Harness results
+
+- eval/test_deterministic.py against runs 3 and 4: 11/13 and 10/13 respectively.
+- eval/test_deterministic_step.py: 5/5 (unchanged from isolated measurement).
+- eval/test_policy.py: 5/5.
+
+### Failure analysis -- none attributable to this conversion
+
+- `retrieval_citations` (both runs): planner's `retrieve` call lost citation fidelity (missing chunk_index on one result) when the Orchestrator reconstructed the tool-call record from planner's prose report rather than observing the raw call directly. Identical root cause to DEV-02's documented gap (Module 3.3 calibration log) -- a third independent instance, unrelated to orchestrator_test, and the Orchestrator correctly declined to invent the missing field rather than fabricate a passing result.
+- `cost`/`latency` (both runs): genuinely unmeasured -- no /status check taken before/after either session. A measurement-discipline gap in how these sessions were run, not something the conversion caused or could prevent.
+- `role_order` (run 4, before the transcript fix): a transcript-authoring error (wrong expected_path), not an actual ordering problem -- the real sequence was correct throughout.
+
+What the lesson's own regression standard actually requires -- "every check that passed before must still pass" -- held cleanly: `required_roles`, `role_order` (post-fix), `tool_grants`, and `forbidden_operations` all passed on every run, confirming the conversion did not break routing, delegation, or authorization anywhere it touches.
+
+**Conclusion: no regression from the orchestrator_test conversion.** All findings trace to pre-existing, unrelated gaps (retrieval citation fidelity) or measurement discipline (unbracketed sessions), not to the converted step's own behavior.
