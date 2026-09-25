@@ -379,6 +379,36 @@ class OrderServiceImplTest {
 	}
 
 	@Test
+	void viewAllProducts_stopsRetrying_whenRetryableExceptionFollowedByPlainFeignException() {
+		// First attempt is a truly unreachable RetryableException (retried), second attempt
+		// is a genuine FeignException with a real HTTP 500 response (not retryable). The loop
+		// must stop after the second attempt -- no third call -- and the resulting mapping must
+		// reflect the plain FeignException branch (502/BAD_GATEWAY), not the unreachable branch.
+		when(feignClient.getAllProducts())
+				.thenThrow(unreachableException("/catalog-service/v1/products"))
+				.thenThrow(errorStatusForGetAllProducts(500));
+
+		assertThatThrownBy(() -> orderService.viewAllProducts())
+				.isInstanceOf(ResponseStatusException.class)
+				.satisfies(ex -> {
+					ResponseStatusException rse = (ResponseStatusException) ex;
+					assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+					assertThat(rse.getReason()).isEqualTo("Product service returned an error, please try again later");
+				});
+
+		// Exactly two calls: the retried unreachable attempt, then the plain FeignException
+		// attempt -- no third call, proving the loop did not continue retrying past it.
+		verify(feignClient, times(2)).getAllProducts();
+		// Exactly one backoff (between attempt 1 and 2), none after the second exception.
+		assertThat(recordedSleeps).isEqualTo(List.of(200L));
+
+		assertThat(listAppender.list).hasSize(1);
+		ILoggingEvent event = listAppender.list.get(0);
+		assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+		assertThat(event.getFormattedMessage()).contains("getAllProducts").contains("500");
+	}
+
+	@Test
 	void viewAllProducts_throwsBadGateway_whenProductServiceReturns500() {
 		when(feignClient.getAllProducts()).thenThrow(errorStatusForGetAllProducts(500));
 
