@@ -1,0 +1,64 @@
+{
+  "task_id": "regression-check-ho04-rerun",
+  "expected_path": ["planner", "orchestrator_plan_review", "reviewer", "orchestrator_test"],
+  "duration_seconds": 268,
+  "duration_note": "Approximate, not rigorously bracketed. Session-visible `date` readings: 19:15:45 UTC (shortly before the task was given) to 19:20:03 UTC (summary presented to human) = 258s of active work; the 19:20:03-19:22:35 gap was the human-approval wait and is excluded per policy; ~10s added for finalizing this transcript after approval. Not a clean isolated-session measurement like DEV/HO conventions expect -- this session had prior unrelated turns (date/login checks) before the task was given.",
+  "cost_usd": null,
+  "cost_note": "Not measured: the orchestrating session has no programmatic access to /status (it is a human-run CLI command, not a tool available mid-session), so no cost delta was captured before or after this run.",
+  "task_description": "Regression check on 'add validation to placeOrder() so a negative or zero productId is rejected with a 400 before any Feign call is made.' Purpose of this specific transcript: verify the orchestrator_test deterministic-conversion integration (ADR-001) -- script invocation, structured result, no narration of raw Maven output -- functions correctly end-to-end on a real task, independent of whether that task required a code change.",
+  "events": [
+    {
+      "type": "orchestrator_step",
+      "step": 0,
+      "role": "orchestrator_context_boundary",
+      "output": "Goal restated: add validation to placeOrder() rejecting productId <= 0 with 400 before any Feign call. Rules in effect (verbatim from CLAUDE.md Orchestrator Instructions, Human checkpoint, Evaluation Transcript Recording, Memory Configuration) listed to the human. No prior rules superseded. Artifact identified: OrderController.java and the Feign-call path in OrderServiceImpl. SCOPE.md checked (matched: 'E-Commerce Microservices Application' / first-microservices-Viji-R) and MEMORY_INDEX.md read (5 active decision entries, none flagged stale)."
+    },
+    {
+      "type": "subagent",
+      "step": 1,
+      "role": "planner",
+      "output": "Reported it lacked mcp__retrieval__retrieve in its granted tool set for this invocation (only file_read and codebase_search available) and flagged this explicitly rather than fabricating a retrieval result or skipping the note silently. Via direct code inspection (file_read on OrderController.java, IOrderService.java, OrderServiceImpl.java; codebase_search across the test files) found the requested guard clause already present at OrderServiceImpl.java lines 89-92 (`if (productId <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, \"productId must be a positive integer\");`), preceding the callWithRetry/Feign call, with four corresponding tests already in OrderServiceImplTest.java (zero, negative, Integer.MIN_VALUE, no-logging), each asserting verifyNoInteractions(feignClient). Concluded no code change was required and recommended NOT handing off to implementer, since a no-op diff would violate correct-scoping. File list: five files read-only, none requiring modification."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 2,
+      "role": "orchestrator_plan_review",
+      "output": "Did not accept the planner's finding on summary alone. Independently re-read OrderServiceImpl.java myself and confirmed the guard clause verbatim, its position before callWithRetry, and matching tests in OrderServiceImplTest.java (grep-confirmed the four test names and their bodies). Ran `git log --oneline -- OrderServiceImpl.java` (single commit 70f81a0) and `git diff -w --stat` on both files (empty output), confirming the validation already exists on HEAD and the only working-tree difference is line-ending noise, not new content. Concurred implementer should not run; flagged the planner's missing retrieval tool grant as a gap to note but not a blocker here, since the code-inspection finding made the retrieval step moot for this specific task."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 3,
+      "role": "orchestrator_test",
+      "output": "Ran `./mvnw test -Dtest=OrderServiceImplTest,OrderControllerTest` in ecom-order-service, capturing output to maven-output.txt (per CLAUDE.md, exit code 0). Then ran `python3 scripts/parse_test_result_deterministic.py --input maven-output.txt --output test-result.json` per ADR-001 and read the structured result directly rather than narrating the raw Maven log: {valid: true, tests_run: 37, failures: 0, errors: 0, skipped: 0, problems: []}. This is the specific integration point this transcript exists to document: script invocation succeeded, the structured JSON result was authoritative and consulted (not the raw log), and no manual interpretation of Maven output occurred, consistent with ADR-001's intended flow, exercised here on a real (not synthetic/calibration) task.",
+      "test_result": {
+        "passed": true,
+        "command": "./mvnw test -Dtest=OrderServiceImplTest,OrderControllerTest",
+        "parsed_result": {"valid": true, "tests_run": 37, "failures": 0, "errors": 0, "skipped": 0}
+      }
+    },
+    {
+      "type": "subagent",
+      "step": 4,
+      "role": "reviewer",
+      "output": "Reviewed the existing (already-committed) placeOrder validation as if it were a fresh change, across four sections, all approve: (1) Correctness -- guard is the first statement in placeOrder, unconditionally precedes the Feign call, `productId <= 0` correctly covers zero/negative/Integer.MIN_VALUE with no overflow risk. (2) Layering -- validation correctly lives in OrderServiceImpl (service layer), consistent with this file's existing convention of centralizing all Feign-failure-to-HTTP-status mapping there; OrderController confirmed to be a thin pass-through with no logic of its own. (3) Test coverage -- thorough (zero/negative/MIN_VALUE boundary cases, verifyNoInteractions(feignClient) on each, a ListAppender-based zero-logging assertion); one minor non-blocking observation that there's no test explicitly re-confirming a valid productId does NOT trip the guard, though an existing unrelated test covers this implicitly. (4) Scope discipline -- codebase_search confirmed no duplicate/competing validation elsewhere (no bean-validation annotations, no second guard). Self-noted limitation: reviewer had no build/test execution access, so could not independently confirm tests pass -- covered by this transcript's own orchestrator_test step (step 3) run separately by the orchestrator."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 5,
+      "role": "orchestrator_diff_review",
+      "output": "N/A for this run -- no diff was produced (implementer did not run, since no code change was needed), so there was nothing to diff-review. Recorded here for completeness rather than silently omitting the step from the narrative, not as a role that actually executed."
+    },
+    {
+      "type": "orchestrator_step",
+      "step": 6,
+      "role": "orchestrator_discrepancy_note",
+      "output": "Found a prior transcript, .eval-artifacts/runs/dev-placeorder-productid-validation.json, recording this same validation as implemented and committed at hash 9c8d3e5. That hash is not present in current `git log`. Per human instruction, this is being tracked as a separate follow-up (likely explained by a history-rewriting 'port' commit, 70f81a0, since the code content itself matches exactly via git diff -w) and is deliberately NOT corrected in that file as part of this run."
+    }
+  ],
+  "escalated_to_human": false,
+  "escalation_note": "No reviewer conflict occurred (only one reviewer ran, approved all sections) -- this field reflects that, not the unrelated commit-hash discrepancy noted above, which is a follow-up item, not a live escalation blocking this run.",
+  "human_approved": true,
+  "follow_up_items": [
+    "dev-placeorder-productid-validation.json cites commit 9c8d3e5 for this validation, which is not in current git log -- needs correction/verification in a separate, dedicated pass, not mid-regression-check."
+  ]
+}
