@@ -1,0 +1,26 @@
+# ADR-005: MCP tool boundaries enforced server-side, not through client-side trust alone
+
+## Status
+Accepted
+
+## Context
+
+Three MCP servers mediate everything an agent does outside its own reasoning: `coursetools` (general file/search tools), `storage` (persistent project memory), and `retrieval` (vector/keyword search over a reference corpus). Early in this project (Module 3.1-3.2), tool restriction relied on Claude Code's own client-side `tools:` field per agent definition, plus a server-side role allow-list for `coursetools` only. Storage and retrieval had no server-side role check at all -- `calling_role` was accepted and logged by storage's write operations but never checked against anything, and retrieval's `classification_ceiling` was a caller-supplied parameter with nothing tying it to the caller's actual role. This surfaced as two real, documented near-misses, not hypothetical risks: a `coursetools` general file tool could bypass storage/retrieval's classification logic entirely by reading `.memory/` directly (Module 3.2), and the Orchestrator successfully called storage's `update_entry` in a real run despite CLAUDE.md's own policy denying it (Module 3 Lab, HO-06).
+
+## Decision
+
+Enforce role boundaries server-side, independently at each of the three MCP servers, with deny-by-default allow-lists -- never relying on client-side tool restriction or a subagent's own good behavior as the actual security boundary. `coursetools` blocks `.memory/` from `file_read`/`file_write`/`codebase_search` entirely except narrow, role-scoped exceptions (`.memory/knowledge/` readable by all; `.memory/project/` read+write by `decision-auditor` only). `storage` runs `_authorize()` on every operation, checking `calling_role` against `mcp-servers/storage/allow-list.json` before touching the database. `retrieval` runs an equivalent check, computing the *effective* classification ceiling as the minimum of what a caller requests and what their role's own policy allows -- never trusting the caller's requested ceiling as the final word.
+
+## Alternatives considered
+
+- **Rely on client-side `tools:` restriction alone** (what each subagent's own definition says it can call). Rejected with direct evidence: this layer alone did not stop the `coursetools` `.memory/` bypass, since a general file tool with path access has no concept of which MCP server "should" own that data -- the bypass used a tool the client-side restriction never flagged as dangerous, because reaching `.memory/` wasn't itself restricted at that layer. module3_doc's own documented finding: "a general-purpose file tool with no concept of document sensitivity can defeat a dedicated access-control system just by reaching the same data through a different path."
+- **Trust the caller's self-declared role and parameters without a second server-side check** (storage/retrieval's original state). Rejected with direct evidence: the Orchestrator's `update_entry` call succeeded in a real run (HO-06) specifically because nothing checked `calling_role` against anything -- it was accepted and merely logged. Retrieval's `classification_ceiling` had the identical gap: a caller could request any ceiling and receive exactly that, with no role-based cap.
+- **Server-side deny-by-default allow-lists at every MCP server independently (chosen).** Preferred because it does not depend on any other layer behaving correctly -- even if a client-side restriction is misconfigured or bypassed, the server itself refuses an operation outside the caller's declared role's grant. Verified directly: the exact HO-06 call, re-attempted after this fix, now returns `authorization_denied` naming the role and operation, confirmed via a real MCP call, not a simulated test.
+
+## Consequences
+
+Three independent server-side boundaries now exist where there was effectively zero before storage/retrieval's `_authorize()` additions. Known, explicitly documented limitation, not hidden: every check still authorizes against a *self-declared* `calling_role`/`role` parameter -- confirmed directly by a test where the Orchestrator successfully called `write_entry` claiming `calling_role="implementer"` and the call succeeded normally, indistinguishable from the real `implementer` subagent. This is an accepted, architecturally-forced limitation (subagents share one Orchestrator container rather than each running as a separately-identifiable process), not an oversight -- documented in CLAUDE.md and docs/routing-and-tool-grant-map.md so it is never mistaken for verified identity. Open risk: a future environment where subagents genuinely run as separate processes could close this gap with real process-level identity; worth revisiting if this architecture changes.
+
+## Evidence
+
+module3_doc/calibration-log.md: the original `.memory/` bypass finding (Module 3.2) and the HO-06 near-miss (Module 3 Lab). CLAUDE.md, Storage and Retrieval Access section: the self-declaration limitation, confirmed by direct test. eval/enforcement-verification.md: Layer 2 storage and retrieval verification, including the real negative test (orchestrator denied `update_entry`), positive control (implementer's `write_entry` still works), and the retrieval ceiling-capping three-way test (denied / capped-to-empty / genuinely granted).
