@@ -226,3 +226,17 @@ Rules for populating it honestly:
 - For each subagent's `tool_call` events, use what that subagent reported having called, cross-checked against `.memory/storage/storage-audit.log` wherever the operation is a storage write -- if the two disagree, record what the audit log says and note the discrepancy in the transcript rather than silently picking one.
 - `output` fields should be the subagent's or your own actual produced text, not a paraphrase -- the rubric-scored suite reads these directly as evidence.
 - If a task plants a canary string for a context-bleed check, record it in a `canary` field at the top level, and make sure it is genuinely absent from any `output` field it should not have reached.
+
+### Pipeline Reliability and Cost Controls
+
+These are genuine, enforced guards on the orchestration pipeline itself -- distinct from the Target Codebase's own application-level retry logic (decision-005's `callWithRetry`), which handles a different problem (Feign calls to an unreachable service, not the agentic pipeline's own runaway cost/time/loops).
+
+**Max-iteration guard on plan revision.** If `orchestrator_plan_review` sends a plan back to `planner` for revision, track the count. After 3 revision cycles on the same task (matching decision-005's own `MAX_ATTEMPTS` for consistency), stop -- do not send it back a 4th time. Report to the human: the task as stated may be ambiguous or underspecified in a way repeated planning attempts aren't resolving; ask for clarification rather than looping indefinitely.
+
+**Per-workflow budget, enforced live, not just checked after the fact.** Before starting a task, note the session's current `/status` cost total. Check it again if the task is still running after roughly 10 minutes of wall-clock time. If the task's own cost delta exceeds $2.00, or the task's own wall-clock time exceeds 900 seconds (matching `eval/test_deterministic.py`'s `MAX_COST_USD`/`MAX_LATENCY_SECONDS`, so the same number means the same thing whether checked live or in the evaluation harness afterward) -- stop, report the overage to the human, and ask whether to continue, scope down, or abandon the task. Do not silently keep going past either threshold.
+
+**MCP server unreachable.** If a `storage` or `retrieval` tool call fails with a connection error, do not retry silently or proceed without the server (e.g., skipping `retrieve` and planning blind, or skipping `write_entry` and losing a lesson). Report to the human that the required MCP server isn't running in this container, and halt that step until it's confirmed started. This has a real, recurring cause documented in this project's own history: these are HTTP servers requiring manual start every fresh container, not persistent across sessions.
+
+**Subagent stall.** If a subagent invocation (a Task-tool call to `planner`, `implementer`, `reviewer`, `spring-boot-reviewer`, or `decision-auditor`) has not returned after 10 minutes, treat it as a stall, not a slow-but-working call -- every real subagent invocation recorded in this project's history (`module3_doc/calibration-log.md`, `.eval-artifacts/`) has completed well under this window. Report the stall to the human rather than waiting indefinitely.
+
+**Fallback posture, stated plainly:** every guard above fails toward stopping and escalating to a human, never toward silently proceeding in a degraded mode. This project has no automatic-retry-without-limit or silent-skip-and-continue behavior anywhere in the orchestration layer.
