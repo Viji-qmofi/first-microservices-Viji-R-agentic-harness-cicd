@@ -361,6 +361,24 @@ class OrderServiceImplTest {
 	}
 
 	@Test
+	void viewAllProducts_succeedsOnSecondAttempt_whenProductServiceUnreachableOnceThenSucceeds() {
+		List<Product> products = List.of(new Product("Mobile", 1, "Samsung", "Electronics"));
+		when(feignClient.getAllProducts())
+				.thenThrow(unreachableException("/catalog-service/v1/products"))
+				.thenReturn(products);
+
+		List<Product> result = orderService.viewAllProducts();
+
+		assertThat(result).isEqualTo(products);
+		// Loop must stop on the successful second attempt -- no third call.
+		verify(feignClient, times(2)).getAllProducts();
+		// Exactly one backoff (between attempt 1 and 2), none after the success.
+		assertThat(recordedSleeps).isEqualTo(List.of(200L));
+		// WARN fires only once retries are exhausted; a recovered call logs nothing.
+		assertThat(listAppender.list).isEmpty();
+	}
+
+	@Test
 	void viewAllProducts_throwsServiceUnavailable_whenProductServiceUnreachable() {
 		when(feignClient.getAllProducts())
 				.thenThrow(unreachableException("/catalog-service/v1/products"));
