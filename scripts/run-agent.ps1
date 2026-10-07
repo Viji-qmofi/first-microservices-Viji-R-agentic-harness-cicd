@@ -63,7 +63,7 @@ $DockerArgs = @(
     '-e', 'ANTHROPIC_API_KEY',
     '-e', 'COURSETOOLS_ROOT=/workspace',
     '-e', 'STORAGE_DB_PATH=/workspace/.memory/storage/storage.db',
-    '-e', 'STORAGE_AUDIT_PATH=/workspace/.memory/storage/storage-audit.log',
+    '-e', 'STORAGE_AUDIT_PATH=/workspace/.memory/storage/storage-audit.log', '-e', 'RETRIEVAL_AUDIT_PATH=/workspace/.memory/storage/retrieval-audit.log',
     '-e', 'RETRIEVAL_REFERENCE_DIR=/workspace/.memory/reference',
     '-e', "AGENT_ROLE=$Role"
 )
