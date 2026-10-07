@@ -15,3 +15,6 @@ audit-review-*.log
 .cache/
 ecom-order-service/maven-output.txt
 ecom-order-service/test-result.json
+
+maven-output.txt
+test-result.json
