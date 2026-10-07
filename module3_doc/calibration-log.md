@@ -173,10 +173,18 @@ Result: **the guard held.** The Orchestrator stopped before handing the plan to 
 
 8. **The model is not recorded and appears to vary between runs.** The retest session's responses are labeled `claude-sonnet-5`; earlier sessions' headers showed an Opus model. Transcripts do not record the model, so it cannot be ruled out as a contributor to run-to-run differences such as finding 4. Not a confirmed cause.
 
+### Follow-up: planner v3 retest (2026-10-07)
+
+Fix under test: agents/planner.md v3 (commit 9eaf370), which adds an explicit rule to stop and report if `retrieve` is unavailable, never substituting another search tool, plus `calling_role="planner"` and a corrected ceiling statement. Conditions: image rebuilt (the baked-in copy showed `version: v3`), fresh container, storage and retrieval servers not started (both ports returned 000), planner invoked directly with an instruction not to act on its output.
+
+Result: **planner stopped on its own.** Its report said `mcp__retrieval__retrieve` was absent from its tool list (not a connection error or an authorization_denied), that it produced no plan, and that the decision belonged to the Orchestrator. It did not substitute another source. The run before the fix, with the same tool absent, substituted and was caught only by the Orchestrator; this run needed no Orchestrator catch.
+
+Limits of this evidence: one run before the fix and one after, so this shows the change can hold, not that it always will. The Orchestrator's summary states planner made no codebase_search or file_read calls; planner's own tool-call list has not been inspected directly. Run-to-run model differences (finding 8) were not controlled.
+
 ### Open items
 
-- Confirm which tool planner used for the substitution in finding 7 by expanding its run and listing its tool calls.
-- Check agents/planner.md for what it says about an unavailable `retrieve`. If silent, add an explicit "stop and report if `retrieve` is unavailable; never substitute another search tool" rule. Agent definitions are copied into the image at build time, so this needs a rebuild before it takes effect; retest afterward.
+- Inspect planner's tool-call list from the v3 retest (ctrl+o) to confirm no substitute search was attempted.
+- Repeat the planner v3 missing-retrieve test at least once more, noting the model shown in the session header, so the result does not rest on a single run.
 - Record the model in evaluation transcripts (finding 8).
 - Investigate the codebase_search miss (finding 5).
 - Add finding 3 to the handbook's MCP transport note: starting an HTTP server mid-session does not expose its tools to that session.
