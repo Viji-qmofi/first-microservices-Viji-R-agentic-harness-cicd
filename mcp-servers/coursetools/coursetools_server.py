@@ -1,7 +1,7 @@
 """Dummy MCP server for the scoped-agent orchestration lesson.
 
 This server is a safe stand-in for course tools. It exposes the tools named in the
-lesson and enforces a role-based allow-list loaded from mcp/roles.allowlist.json.
+lesson and enforces a role-based allow-list loaded from roles.allowlist.json (same directory).
 
 Each tool expects a ``role`` argument so students can verify that denied calls fail
 with an authorization error. The server is deliberately small and should be used
@@ -25,21 +25,20 @@ ALLOWLIST_PATH = Path(
     os.environ.get("COURSETOOLS_ALLOWLIST", str(Path(__file__).parent / "roles.allowlist.json"))
 )
 
-DEFAULT_ALLOWLIST: dict[str, list[str]] = {
-    "file_read": ["planner", "implementer", "reviewer", "tester", "orchestrator"],
-    "file_write": ["implementer", "orchestrator"],
-    "codebase_search": ["planner", "implementer", "reviewer"],
-    "shell": [],
-    "test_runner": ["tester"],
-    "task_tracker": ["project-manager"],
-    "web_search": ["researcher"],
-}
-
-
 def load_allowlist() -> dict[str, list[str]]:
-    if ALLOWLIST_PATH.exists():
-        return json.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
-    return DEFAULT_ALLOWLIST
+    """Load the role allow-list, failing closed.
+
+    If the allow-list file is missing, refuse to start. There is deliberately no
+    built-in default: a silent fallback is how an out-of-date list once went
+    unnoticed (Module 4.1) while the server kept running with grants that no
+    longer matched docs/governance-policy.md (ADR-005).
+    """
+    if not ALLOWLIST_PATH.exists():
+        raise FileNotFoundError(
+            f"coursetools allow-list not found at {ALLOWLIST_PATH}. Refusing to start: "
+            "this server fails closed and has no built-in default."
+        )
+    return json.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
 
 
 ALLOWLIST = load_allowlist()

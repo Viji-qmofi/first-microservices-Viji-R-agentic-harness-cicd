@@ -24,3 +24,8 @@ Three independent server-side boundaries now exist where there was effectively z
 ## Evidence
 
 module3_doc/calibration-log.md: the original `.memory/` bypass finding (Module 3.2) and the HO-06 near-miss (Module 3 Lab). CLAUDE.md, Storage and Retrieval Access section: the self-declaration limitation, confirmed by direct test. eval/enforcement-verification.md: Layer 2 storage and retrieval verification, including the real negative test (orchestrator denied `update_entry`), positive control (implementer's `write_entry` still works), and the retrieval ceiling-capping three-way test (denied / capped-to-empty / genuinely granted).
+
+## Update (2026-10-08): the coursetools server now fails closed
+
+The decision above says deny-by-default at every MCP server, but `coursetools_server.py` carried a hardcoded fallback allow-list (including `orchestrator` for `file_read` and `file_write`) that it silently used whenever `roles.allowlist.json` was missing, so the claim was untrue for that server in that state. Reproduced directly: with the allow-list path pointing at a missing file, the original server started and exited 0 on the fallback. Fixed: `load_allowlist()` now raises and the server refuses to start; `eval/test_governed_files.py` guards it (no fallback list in the source, a missing file stops the server with the expected error, and the real file still starts it). Open risk reduced, not removed: roles remain self-declared strings, as above.
+

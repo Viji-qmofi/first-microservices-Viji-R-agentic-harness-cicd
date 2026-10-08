@@ -14,7 +14,10 @@ runtime behavior, and roles are still self-declared strings (ADR-005).
 """
 import ast
 import json
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -238,6 +241,38 @@ def test_coursetools_policy_matches_allow_list():
             if r not in policy:
                 problems.append(f"coursetools allow-list grants {op} to '{r}', which has no policy section")
     _fail_if(problems, "Coursetools policy and allow-list disagree:")
+
+
+def _run_coursetools(allowlist_path):
+    server = ROOT / "mcp-servers" / "coursetools" / "coursetools_server.py"
+    env = dict(os.environ, COURSETOOLS_ROOT=str(ROOT.resolve()), COURSETOOLS_ALLOWLIST=str(allowlist_path))
+    # stdin is closed, so a server that does start exits immediately instead of waiting for a client.
+    proc = subprocess.run([sys.executable, str(server)], env=env, stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True, timeout=60)
+    assert "ModuleNotFoundError" not in proc.stderr, (
+        "Cannot run this check: the MCP dependencies are missing. Run it inside the container (requirements.txt)."
+    )
+    return proc
+
+
+def test_coursetools_fails_closed_without_its_allow_list():
+    """A missing allow-list must stop the server, never fall back to a built-in list (ADR-005)."""
+    source = (ROOT / "mcp-servers" / "coursetools" / "coursetools_server.py").read_text(encoding="utf-8")
+    assert "DEFAULT_ALLOWLIST" not in source, (
+        "coursetools_server.py has a built-in fallback allow-list again. A silent default once let an "
+        "out-of-date list defeat the policy; the server must fail closed."
+    )
+    proc = _run_coursetools(ROOT.resolve() / "no-such-allow-list.json")
+    assert proc.returncode != 0, "coursetools started without its allow-list file; it must refuse to start."
+    assert "allow-list not found" in proc.stderr, (
+        "coursetools failed, but not for the expected reason. stderr tail: " + proc.stderr[-300:]
+    )
+
+
+def test_coursetools_starts_with_its_real_allow_list():
+    """Positive control: the fail-closed change must not stop the server starting with the real file."""
+    proc = _run_coursetools(ROOT.resolve() / "mcp-servers" / "coursetools" / "roles.allowlist.json")
+    assert proc.returncode == 0, "coursetools failed to start with its real allow-list. stderr tail: " + proc.stderr[-300:]
 
 
 def test_agent_files_match_policy():
