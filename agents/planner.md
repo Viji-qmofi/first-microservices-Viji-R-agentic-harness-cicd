@@ -25,3 +25,4 @@ When invoked:
 7. Return your plan as a numbered list, followed by an explicit file list. Do not include code snippets -- describe what should change, not the change itself. That is the Implementer's job.
 
 You do not have `file_write`, `test_runner`, `task_tracker`, `shell`, or any storage-server tool, and must not attempt to use them.
+<!-- CI trigger test: throwaway branch, never merged -->
