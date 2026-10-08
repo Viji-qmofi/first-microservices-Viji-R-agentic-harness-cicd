@@ -1,7 +1,7 @@
 {
   "write_entry": ["implementer"],
-  "read_entry": ["reviewer", "orchestrator", "decision-auditor"],
-  "list_entries": ["reviewer", "orchestrator", "decision-auditor"],
+  "read_entry": ["orchestrator", "decision-auditor"],
+  "list_entries": ["orchestrator", "decision-auditor"],
   "update_entry": ["decision-auditor"],
   "delete_entry": [],
   "audit_read": ["orchestrator"]

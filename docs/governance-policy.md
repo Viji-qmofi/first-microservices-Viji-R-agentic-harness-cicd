@@ -1,7 +1,7 @@
 # Agent Governance Policy
 
-Version: v1.0.0
-Last updated: 2026-09-23
+Version: v1.1.0
+Last updated: 2026-10-08
 Reviewed by: Viji Ramu
 
 ## Policy basis
@@ -20,9 +20,15 @@ Any access not explicitly granted to a role is denied by default.
 
 To widen access, open a pull request with: the proposed grant, a concrete justification, and confirmation that the grant does not conflict with any near-miss pattern in the calibration log.
 
+## How this policy is checked against what is actually configured
+
+The tables below are the single source of truth for what each role may do. `eval/test_governed_files.py` compares them, on every change that touches an agent, skill, allow-list, or this document, against: the three MCP allow-lists (`mcp-servers/storage/allow-list.json`, `mcp-servers/retrieval/allow-list.json`, `mcp-servers/coursetools/roles.allowlist.json`), each agent file's `tools:` line and version, the skills under `skills/`, and the evaluation harness's own copies of the grants (`module3_doc/routing-and-tool-grant-map.json` and `FORBIDDEN_OPERATIONS` in `eval/test_deterministic.py`). Any disagreement fails the `governed-file-gate` CI job (`ADR-007`).
+
+This checks declared grants against configured grants. It does not check runtime behavior, and roles remain self-declared strings, not verified identities (`ADR-005`).
+
 ## Role: planner
 
-**Version:** v2  
+**Version:** v3  
 **Defined in:** `agents/planner.md`
 
 ### MCP server and operation access
@@ -36,17 +42,21 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | delete_entry | storage | NO | Planner must not remove project state. |
 | audit_read | storage | NO | Audit inspection is owned by the orchestrator. |
 | retrieve | retrieval | YES | Planner retrieves prior lessons before proposing an approach (CLAUDE.md, Orchestrator Instructions). |
+| file_read | coursetools | YES | Planner reads the current code to form its own understanding of the task (agents/planner.md). |
+| file_write | coursetools | NO | Planner produces a plan only; it never writes anything. |
+| codebase_search | coursetools | YES | Planner confirms how something is used elsewhere in the codebase. The search can miss call sites, so planner confirms by reading the file directly. |
 
 ### Skill activation scope
 
 | Skill | Activation permitted | Reason if denied |
 |---|---|---|
 | summarize-session | YES | Planner may summarize its own planning work. |
+| verify-before-trusting | YES | Planner may verify claims about current code or state before planning against them. The skill describes a procedure; it never widens the role's tool grants. |
 
 ### Data classification ceiling
 
 **Maximum level:** internal  
-**Reason:** Planner's own instructions require it to always pass `classification_ceiling="internal"` and never request higher (CLAUDE.md). This is self-declared by the caller, not server-enforced per role, until Layer 2 below.
+**Reason:** Planner's own instructions require it to always pass `classification_ceiling="internal"` and never request higher (CLAUDE.md). Server-enforced since ADR-005: the retrieval server caps the effective ceiling at this role's allow-list value (`mcp-servers/retrieval/allow-list.json`) regardless of what is requested. The instruction above remains as defense in depth.
 
 ### Autonomy level
 
@@ -71,12 +81,16 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | delete_entry | storage | NO | Implementer must not remove project state. |
 | audit_read | storage | NO | Audit inspection is owned by the orchestrator. |
 | retrieve | retrieval | NO | Planner already supplies retrieved context during planning; implementer works from the approved plan, not a fresh retrieval (module3_doc/role-access-table.md). |
+| file_read | coursetools | YES | Implementer reads the code it is changing. |
+| file_write | coursetools | YES | Implementer writes code exactly per the approved plan; it is the one role whose job is producing diffs. |
+| codebase_search | coursetools | YES | Implementer locates call sites and existing conventions while making the change. |
 
 ### Skill activation scope
 
 | Skill | Activation permitted | Reason if denied |
 |---|---|---|
 | summarize-session | YES | Implementer may summarize its own implementation work. |
+| verify-before-trusting | YES | Implementer may verify a plan's claims about the current code before editing. The skill describes a procedure; it never widens the role's tool grants. |
 
 ### Data classification ceiling
 
@@ -100,23 +114,27 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | Operation | Server | Granted | Justification / Denial reason |
 |---|---|---|---|
 | write_entry | storage | NO | Reviewer must not change project state. |
-| read_entry | storage | YES | Reviewer reads prior decisions relevant to what it's reviewing. |
-| list_entries | storage | YES | Reviewer checks what exists before reviewing. |
+| read_entry | storage | NO | Reviewer works from the diff and affected files through coursetools. This was granted before, but `agents/reviewer.md` never wired the tool, so the grant could not be used; removed in the capstone consistency pass (least privilege, `ADR-007`). |
+| list_entries | storage | NO | Reviewer works from the diff and affected files through coursetools. This was granted before, but `agents/reviewer.md` never wired the tool, so the grant could not be used; removed in the capstone consistency pass (least privilege, `ADR-007`). |
 | update_entry | storage | NO | Reviewer must not change project state. |
 | delete_entry | storage | NO | Reviewer must not remove project state. |
 | audit_read | storage | NO | Audit inspection is owned by the orchestrator. |
-| retrieve | retrieval | YES | Reviewer retrieves relevant prior lessons/standards while forming a verdict. |
+| retrieve | retrieval | NO | `agents/reviewer.md` never wired `mcp__retrieval__retrieve`. Planner supplies retrieved lessons during planning and the Orchestrator retrieves standards while evaluating results; removed in the capstone consistency pass (least privilege, `ADR-007`). |
+| file_read | coursetools | YES | Reviewer reads the diff and the affected files to review them. |
+| file_write | coursetools | NO | Reviewer must not change the work it independently inspects. |
+| codebase_search | coursetools | YES | Reviewer confirms how the changed code is used elsewhere. |
 
 ### Skill activation scope
 
 | Skill | Activation permitted | Reason if denied |
 |---|---|---|
 | summarize-session | YES | Reviewer may summarize its own review. |
+| verify-before-trusting | YES | Reviewer may verify claims in a change summary against the actual diff. The skill describes a procedure; it never widens the role's tool grants. |
 
 ### Data classification ceiling
 
-**Maximum level:** internal  
-**Reason:** Reviewer's job is evaluating internal engineering work; it does not require confidential material.
+**Maximum level:** N/A (retrieve denied)  
+**Reason:** Reviewer has no retrieval access, so no ceiling applies.
 
 ### Autonomy level
 
@@ -141,12 +159,16 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | delete_entry | storage | NO | Must not remove project state. |
 | audit_read | storage | NO | Audit inspection is owned by the orchestrator. |
 | retrieve | retrieval | NO | Does not call the retrieval server; reviews Spring Boot-specific diff content directly. |
+| file_read | coursetools | NO | Reads the codebase through native tools (Read/Grep/Glob/Bash), not coursetools. |
+| file_write | coursetools | NO | Advisory-only; must never write. |
+| codebase_search | coursetools | NO | Searches through native tools (Grep/Glob), not coursetools. |
 
 ### Skill activation scope
 
 | Skill | Activation permitted | Reason if denied |
 |---|---|---|
 | summarize-session | YES | May summarize its own review findings. |
+| verify-before-trusting | YES | May verify claims in a change summary against the actual diff. The skill describes a procedure; it never widens the role's tool grants. |
 
 ### Data classification ceiling
 
@@ -176,12 +198,16 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | delete_entry | storage | NO | Orchestrator must not remove project state. |
 | audit_read | storage | YES | Orchestrator is the role responsible for investigating authorization denials and audit history. |
 | retrieve | retrieval | YES | Orchestrator retrieves relevant standards/prior lessons while evaluating implementer's result, standing in for a dedicated Reviewer-adjacent check (CLAUDE.md). |
+| file_read | coursetools | NO | The Orchestrator does not use coursetools directly; it coordinates subagents and runs shell commands natively. |
+| file_write | coursetools | NO | The Orchestrator never writes code directly (CLAUDE.md). Its native edit tools sit outside MCP enforcement, so this denial is a policy rule the Orchestrator follows, not a technical block. |
+| codebase_search | coursetools | NO | Not used directly; subagents search on its behalf. |
 
 ### Skill activation scope
 
 | Skill | Activation permitted | Reason if denied |
 |---|---|---|
 | summarize-session | YES | Orchestrator may summarize workflow state. |
+| verify-before-trusting | YES | The Orchestrator is this skill's main user: it verifies subagent reports against real artifacts instead of trusting self-reports. The skill describes a procedure; it never widens the role's tool grants. |
 
 ### Data classification ceiling
 
@@ -211,6 +237,9 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | delete_entry | storage | NO | No established need; correcting a stale record is not the same as removing it. |
 | audit_read | storage | NO | Audit inspection is owned by the orchestrator. |
 | retrieve | retrieval | NO | This role's job is checking a record against real git/build state, not researching prior lessons. Granting retrieve risks it "correcting" a record based on a plausible-sounding prior lesson instead of verified current reality -- the exact failure mode this role exists to prevent, not commit itself. |
+| file_read | coursetools | YES | Must read a record before checking it. Scoped by the server to `.memory/project/` for this role only; every other `.memory/` path stays blocked. |
+| file_write | coursetools | YES | Corrects git-tracked project memory files that `update_entry` cannot reach. Scoped by the server to `.memory/project/` for this role only. |
+| codebase_search | coursetools | YES | Checks records against the real codebase. The search skips all of `.memory/` for every role, so this does not widen memory access. |
 
 **Known gap this role closes:** `update_entry` was granted to *no* role at all until now -- confirmed directly during red-team Prompt 4 (`eval/red-team-results.md`), where the Orchestrator found no mechanical way to correct an existing entry existed for anyone. `decision-auditor` is the first role given this operation, scoped narrowly to exactly the case it's needed for.
 
@@ -221,6 +250,7 @@ To widen access, open a pull request with: the proposed grant, a concrete justif
 | Skill | Activation permitted | Reason if denied |
 |---|---|---|
 | summarize-session | YES | May summarize its own audit findings. |
+| verify-before-trusting | YES | This role is the skill's closest formalization: it checks a record against real git and build state. The skill describes a procedure; it never widens the role's tool grants. |
 
 ### Data classification ceiling
 

@@ -43,7 +43,7 @@ jobs:
           fi
 
           # Policy/access-control-relevant files.
-          if echo "$CHANGED" | grep -qE '^(agents/|docs/governance-policy\.md|mcp-servers/.*/allow-list\.json|scripts/run-agent\.ps1|\.skills/)'; then
+          if echo "$CHANGED" | grep -qE '^(agents/|docs/governance-policy\.md|mcp-servers/.*/(allow-list|roles\.allowlist)\.json|scripts/run-agent\.ps1|\.skills/)'; then
             echo "touches-policy=true" >> "$GITHUB_OUTPUT"
           else
             echo "touches-policy=false" >> "$GITHUB_OUTPUT"
