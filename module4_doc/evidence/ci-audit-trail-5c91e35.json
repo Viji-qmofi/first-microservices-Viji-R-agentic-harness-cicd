@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "sha": "5c91e35ef480a25e32533ed59e654c02512b97ad",
+    "event": "pull_request",
+    "pull_request": "3",
+    "timestamp": "2026-10-08T20:57:31.482739+00:00"
+  },
+  "change_classification": {
+    "changed_files": [
+      "eval/test_governed_files.py"
+    ],
+    "touches_policy": false,
+    "requires_governed_check": true
+  },
+  "results": {
+    "policy_gate": "success",
+    "governed_file_gate": "failure",
+    "eval_gate": "success",
+    "pipeline_integrity": "success",
+    "advisory_review": "success"
+  },
+  "reports_present": {
+    "policy_report": true,
+    "governed_file_report": true,
+    "deterministic_report": true,
+    "rubric_report": true,
+    "integrity_report": true,
+    "review_audit": true,
+    "review_output": true
+  },
+  "policy_report_summary": {
+    "exitcode": 0,
+    "tests": 5
+  },
+  "governed_report_summary": {
+    "exitcode": 1,
+    "tests": 12
+  },
+  "deterministic_report_summary": {
+    "exitcode": 0,
+    "transcript": ".eval-artifacts/holdout-run-1/HO-02.json",
+    "mode": "regression-check-against-known-good-transcript"
+  },
+  "rubric_report_summary": {
+    "exitcode": 0,
+    "transcript": ".eval-artifacts/holdout-run-1/HO-02.json",
+    "mode": "regression-check-against-known-good-transcript",
+    "skipped": false
+  },
+  "integrity_report_summary": {
+    "exitcode": 0,
+    "errors": [],
+    "checks_run": [
+      "continue-on-error check: eval-gate",
+      "continue-on-error check: pipeline-integrity",
+      "continue-on-error check: policy-gate",
+      "audit-trail: exists and keeps if: always()",
+      "change-type-check: exists"
+    ]
+  },
+  "review_audit": {
+    "timestamp": "2026-10-08T20:57:19.261612+00:00",
+    "mode": "advisory",
+    "changed_files": [
+      "eval/test_governed_files.py"
+    ],
+    "files": [
+      {
+        "path": "eval/test_governed_files.py",
+        "included": true,
+        "reason": "included",
+        "chars": 15029
+      }
+    ],
+    "anthropic_key_present": true,
+    "output": "/out/review-output.md",
+    "exit_behavior": "always_zero_advisory"
+  }
+}
