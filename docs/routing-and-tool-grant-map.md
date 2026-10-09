@@ -1,12 +1,14 @@
 # Routing and Tool Grant Map
 
+This table summarizes `docs/governance-policy.md`, which is the authoritative source and is machine-checked against the allow-lists and agent files (`ADR-007`). If the two ever disagree, the policy wins and this table is the one to fix.
+
 | Role | Route condition | coursetools (file_read / file_write / codebase_search) | Storage operations | Retrieval | Notes |
 |---|---|---|---|---|---|
 | planner | Deciding how to make a change, not just making it | file_read, codebase_search | None | retrieve, ceiling internal | Read-only, advisory. Retrieves prior lessons before proposing an approach. |
 | implementer | Writing code per an approved plan | file_read, file_write, codebase_search | write_entry only | None | No read/list/update/delete on storage -- adds new lessons, never browses or edits existing ones. No retrieve -- planner already supplies retrieved context during planning. |
-| reviewer | Independent diff review, general | file_read, codebase_search | read_entry, list_entries | retrieve, ceiling internal | Advisory only, no write access anywhere. |
+| reviewer | Independent diff review, general | file_read, codebase_search | None | None | Advisory only, no write access anywhere. Storage and retrieval grants were trimmed (`ADR-007`) because `agents/reviewer.md` never wired those tools. |
 | spring-boot-reviewer | Spring Boot convention review | None (native tools only: Read/Grep/Glob/Bash) | None | None | Predates the MCP storage/retrieval layer; reviews the codebase directly, not via MCP. |
-| decision-auditor | Checking/correcting project memory records against git reality | file_read, file_write -- scoped to `.memory/project/` only, role-gated | read_entry, list_entries, update_entry | None | First and only role ever granted `update_entry` (v2, Module 4.1) -- closes the gap where no role could correct an existing entry. Denied `retrieve` deliberately: every correction must trace to verified current state, never a remembered or researched prior lesson. |
+| decision-auditor | Checking/correcting project memory records against git reality | file_read, file_write (scoped to `.memory/project/` only, role-gated), codebase_search (skips all of `.memory/`) | read_entry, list_entries, update_entry | None | First and only role ever granted `update_entry` (v2, Module 4.1) -- closes the gap where no role could correct an existing entry. Denied `retrieve` deliberately: every correction must trace to verified current state, never a remembered or researched prior lesson. |
 | orchestrator | Parent workflow coordination, evaluation, human checkpoint | None directly (coordinates subagents; runs shell commands like `./mvnw test` natively) | read_entry, list_entries, audit_read -- **write_entry/update_entry/delete_entry explicitly denied** | retrieve, ceiling confidential | The denial is load-bearing, not incidental: module3_doc/calibration-log.md's HO-06 finding recorded the Orchestrator successfully calling `update_entry` before this was enforced -- a real near-miss, not a hypothetical one. `_authorize()` (Module 4.1) now denies this for real; verified directly with a live MCP call. |
 
 ## Converted steps
