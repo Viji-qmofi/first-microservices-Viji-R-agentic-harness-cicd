@@ -1,5 +1,7 @@
 # Storage and Retrieval Role Access Table
 
+> **Superseded (kept as history).** This is the Module 3.2 storage and retrieval access table, written before the governance policy existed. The authoritative source is now [`docs/governance-policy.md`](../docs/governance-policy.md).
+
 Project: proj-lessons
 
 | Role | Storage operations | Retrieval operations | Classification ceiling | Why |

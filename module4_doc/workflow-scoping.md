@@ -43,6 +43,14 @@ These are tight enough to pass/fail a run without asking the author for clarific
 
 A real task run, start to finish, showing: the plan, an independent review catching or confirming something specific, the deterministic test step, and the human approval gate -- plus one instance of governance correctly blocking an out-of-scope attempt (`eval/red-team-results.md` provides several real candidates).
 
+## Delivery path
+
+**Job-seeker / no-deployment path.** The pipeline runs on a representative workload: the four-service Spring Boot e-commerce application built in this course (`ecom-*`), taken through real engineering tasks against it (validation, retry logic, test coverage, endpoints). No internal, customer, or production data is used, so no approvals were required.
+
+**Constraints, stated honestly.** There is no live team and no real ticket queue, so there is no pre-existing manual process to baseline against (see "Baseline pain" below). The human checkpoint is a single developer, not a reviewer pool. Run volume is small, dozens of runs rather than thousands, and cost and latency figures come from single-developer sessions.
+
+**What would change in a real deployment.** Roles would become verified process identities instead of self-declared strings (`ADR-005`). The allow-lists and audit logs would live in shared infrastructure, not a local container. Tasks would arrive from a ticket system and results would return as pull requests. A team baseline (review turnaround, defect escape rate) would replace the cited industry context. Approvals for any internal data would be documented before the first run.
+
 ## Why a custom orchestrated pipeline, not simpler automation or a prebuilt agent
 
 A single-shot prebuilt coding agent (no planning/review split, no persistent memory, no governance layer) was considered and rejected implicitly through this project's own evolution: Module 1-2's early, simpler agent definitions were specifically found to need the plan/implement/review split once self-reports proved unreliable without independent verification (handbook, Module 1-2 sections: "an agent's own closing summary is a claim, not evidence"). A simpler CI linter or static-analysis-only tool was rejected because the actual, recurring failure modes observed in this project (scope drift, role-boundary violations, stale-evidence-treated-as-fact) are about *agentic judgment and process*, not static code properties a linter can catch.

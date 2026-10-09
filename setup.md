@@ -102,7 +102,7 @@ Verified with two paired tests: one under `--network none` (should block all egr
 
 **Restricted (`--network none`):**
 ```
-C:\Users\vijir\first-microservices-Viji-R>docker run -it --rm --network none -v "%cd%:/workspace" ecom-agent-sandbox
+C:\Users\<you>\first-microservices-Viji-R>docker run -it --rm --network none -v "%cd%:/workspace" ecom-agent-sandbox
 ai-course:/workspace# curl -v --max-time 5 https://api.anthropic.com
 * Could not resolve host: api.anthropic.com
 * Closing connection
@@ -113,10 +113,10 @@ curl: (6) Could not resolve host: example.com
 
 **Default network:**
 ```
-C:\Users\vijir\first-microservices-Viji-R>docker run --rm ecom-agent-sandbox curl -s -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 https://api.anthropic.com
+C:\Users\<you>\first-microservices-Viji-R>docker run --rm ecom-agent-sandbox curl -s -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 https://api.anthropic.com
 HTTP 404
 
-C:\Users\vijir\first-microservices-Viji-R>docker run --rm ecom-agent-sandbox curl -s -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 https://example.com
+C:\Users\<you>\first-microservices-Viji-R>docker run --rm ecom-agent-sandbox curl -s -o /dev/null -w "HTTP %{http_code}\n" --max-time 5 https://example.com
 HTTP 200
 ```
 
