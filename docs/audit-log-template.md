@@ -49,6 +49,11 @@ EOF
 tail -1 .memory/storage/storage-audit.log
 ```
 
+The record it wrote on 2026-10-09 names its target, unlike the 2026-09-23 denial above:
+```json
+{"calling_role": "denial-check", "classification": null, "entry_id": "test-entry-id", "operation": "update_entry", "outcome": "authorization_denied", "project_id": "proj-lessons", "timestamp": "2026-10-09T20:28:59.081531+00:00"}
+```
+
 ## 2. Retrieval audit log
 
 **Where:** `.memory/storage/retrieval-audit.log`, set by `RETRIEVAL_AUDIT_PATH` (persisted since commit `73425d0`; before that its default path sat outside the bind mount and was lost when the container exited). **Format:** JSON Lines.
