@@ -212,7 +212,7 @@ Trigger: while preparing the architecture write-up, the CI gates were checked ag
 - `d50ab45`: the policy-vs-enforcement tests. On PR #3, Governed File Check **failed, 5 failed and 7 passed** (coursetools, agent files, skills, harness grant map, `FORBIDDEN_OPERATIONS`). Each message pointed at real drift; the passing tests showed the parser reads the real data.
 - `8f87663`: policy gains coursetools rows and the `verify-before-trusting` row, planner is `v3`, the stale ceiling text is corrected; reviewer trimmed (least privilege, since its agent file wires none of those tools); `tester` removed; the harness grant map and `FORBIDDEN_OPERATIONS` rebuilt from the policy; the CI policy filter now matches `roles.allowlist.json`. The commit's checks went green.
 - `ff1f03e`: coursetools now fails closed (it refuses to start without its allow-list); two tests guard it; `module3_doc/routing-and-tool-grant-map.json` added to both CI filters; ADR-005 updated. Governed File Check passed 14 tests in CI, including both new coursetools tests (log retained).
-- Governed File Check was then made a required status check.
+- Governed File Check was then made a required status check, and "Require a pull request before merging" was enabled for `main` (both confirmed 2026-10-08). PR #3 was merged with a merge commit (`38a9abd`), so the red `d50ab45` remains in `main`'s history.
 
 ### Harness re-score
 
@@ -229,5 +229,4 @@ Deliberate-drift checks were run only in scratch copies of the repo, and each wa
 - `CLAUDE.md` prose and `docs/routing-and-tool-grant-map.md` are not machine-checked. Both were corrected by hand in this pass (reviewer access, and decision-auditor's `codebase_search`).
 - The CI filters now cover every governed path, but nothing tests that a newly added governed file is covered.
 - The eval-gate regression check replays a frozen transcript. It shows the harness reproduces a known-good result and that the gate fires on prompt-file changes; it does not evaluate the behavior of a changed prompt.
-- Confirm "Require a pull request before merging" is enabled for `main`.
 - Sandbox leftovers still route to a `tester` role that no longer exists (`scripts/route_task_deterministic.py`, `eval/test_deterministic_router.py`).

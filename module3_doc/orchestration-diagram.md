@@ -1,5 +1,7 @@
 # Orchestration Diagram - FeignException Narrowing Workflow
 
+> **Superseded (kept as history).** This is the Module 3.1 diagram for the FeignException narrowing workflow, drawn before the roles and enforcement in the current policy existed. The current diagram is [`docs/orchestration-diagram.md`](../docs/orchestration-diagram.md).
+
 This file uses Mermaid because GitHub renders Mermaid diagrams directly inside Markdown.
 
 ```mermaid

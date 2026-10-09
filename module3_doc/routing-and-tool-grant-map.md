@@ -1,5 +1,7 @@
 # Routing and Tool Grant Map
 
+> **Superseded (kept as history).** This is the Module 3.1 grant map, written before server-side enforcement and the governance policy existed. The current map is [`docs/routing-and-tool-grant-map.md`](../docs/routing-and-tool-grant-map.md); the authoritative source is [`docs/governance-policy.md`](../docs/governance-policy.md). The live machine-readable copy used by the evaluation harness is `module3_doc/routing-and-tool-grant-map.json`.
+
 Project: `first-microservices-Viji-R`
 
 This map is the design decision of record. Agent definitions in `.claude/agents/` implement this table. When a definition and this map disagree, update the definition to match the map.
