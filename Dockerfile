@@ -66,7 +66,7 @@ RUN node --version && \
 
 # Git identity for commits made inside the container
 RUN git config --global user.name "viji-qmofi" && \
-    git config --global user.email "vijiramu@gmail.com"
+    git config --global user.email "71190113+Viji-qmofi@users.noreply.github.com"
 
 # Claude Code configuration: default settings + status line
 RUN mkdir -p /root/.claude
@@ -92,7 +92,6 @@ COPY mcp-servers/ /workspace/mcp-servers/
 COPY scripts/ /workspace/scripts/
 COPY docs/ /workspace/docs/
 COPY eval/ /workspace/eval/
-COPY schemas/ /workspace/schemas/
 COPY CLAUDE.md /workspace/CLAUDE.md
 
 # Expected workspace directory structure.
