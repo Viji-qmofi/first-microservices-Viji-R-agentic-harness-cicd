@@ -84,7 +84,7 @@ Per the lab's Step 10: all six locked tasks from `module3_doc/holdout-task-set.m
 
 ### Before-conversion baseline (agentic)
 
-- Input: holdout-maven-output.txt (real DEV-02-shaped output, 36 tests, clean pass).
+- Input: `holdout-maven-output.txt` (real DEV-02-shaped output, 36 tests, clean pass). This input and the three result files named below now live in `module4_doc/evidence/` (moved from the repository root on 2026-10-08).
 - 3 runs, same fresh session, same prompt each time, bracketed 18:18:44-18:19:46 UTC.
 - Average cycle time: ~14s/run (42s total API duration / 3).
 - Average token cost: ~$0.173/run ($0.52 total / 3).
@@ -229,4 +229,14 @@ Deliberate-drift checks were run only in scratch copies of the repo, and each wa
 - `CLAUDE.md` prose and `docs/routing-and-tool-grant-map.md` are not machine-checked. Both were corrected by hand in this pass (reviewer access, and decision-auditor's `codebase_search`).
 - The CI filters now cover every governed path, but nothing tests that a newly added governed file is covered.
 - The eval-gate regression check replays a frozen transcript. It shows the harness reproduces a known-good result and that the gate fires on prompt-file changes; it does not evaluate the behavior of a changed prompt.
-- Sandbox leftovers still route to a `tester` role that no longer exists (`scripts/route_task_deterministic.py`, `eval/test_deterministic_router.py`).
+
+
+## Entry: Repository hygiene pass (2026-10-08)
+
+Trigger: a pre-submission review of every tracked file against the brief's required contents and sanitization rules.
+
+- **Sanitization.** Redacted three things: the key-shaped string of a labeled fake test credential (`module2_doc/iteration-log.md`), a local Windows username (`setup.md`), and the author email in a saved diff header. No real secret was found in the tracked files, and a search of the full history for real-style key prefixes found none. The author's email remains in older commit metadata and file history; rewriting history was judged not worth the risk. The Dockerfile's git identity now uses the GitHub noreply address, so commits made inside the container no longer carry a personal email.
+- **Contradictory leftovers.** `docs/calibration-log.md` held the starter's sample near-misses beside this real log, so it is now a pointer. Four Module 3 artifacts were marked superseded and kept as history. The starter's sample files were removed: the router and handoff validator (they route to a `tester` role that does not exist), the bash launcher with fictional roles, the handoff schema and its `COPY` line in the Dockerfile, and three sample test files.
+- **The natural test command was red.** `python3 -m pytest eval/` gave 2 failed and 32 passed on the merged `main`: one sample test read an ADR deleted earlier, and one needed a file that does not exist. CI never ran either, so nothing flagged them. After the cleanup the directory contains only tests that pass on a clean checkout.
+- **Evidence files** that had been left in the repository root were moved to `module4_doc/evidence/`.
+- **Delivery path declared** in `module4_doc/workflow-scoping.md`: no-deployment, with the constraints and what would change in a real deployment.
