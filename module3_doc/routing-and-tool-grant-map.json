@@ -1,6 +1,11 @@
 {
   "planner": ["retrieve", "file_read", "codebase_search"],
   "implementer": ["write_entry", "file_read", "file_write", "codebase_search"],
-  "orchestrator_review": ["retrieve"],
+  "reviewer": ["file_read", "codebase_search"],
+  "spring-boot-reviewer": [],
+  "orchestrator": ["read_entry", "list_entries", "audit_read", "retrieve"],
+  "decision-auditor": ["read_entry", "list_entries", "update_entry", "file_read", "file_write", "codebase_search"],
+  "orchestrator_plan_review": ["read_entry", "list_entries", "audit_read", "retrieve"],
+  "orchestrator_diff_review": ["read_entry", "list_entries", "audit_read", "retrieve"],
   "orchestrator_test": []
 }

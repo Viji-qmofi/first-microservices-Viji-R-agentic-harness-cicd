@@ -189,3 +189,45 @@ Limits of this evidence: one run before the fix and one after, so this shows the
 - Investigate the codebase_search miss (finding 5).
 - Add finding 3 to the handbook's MCP transport note: starting an HTTP server mid-session does not expose its tools to that session.
 - Re-test planner's routing consistency across several runs before changing the trivial-change rule (finding 4).
+
+
+## Entry: CI gates audited and made real; policy-vs-enforcement check added (2026-10-07 to 2026-10-08)
+
+Trigger: while preparing the architecture write-up, the CI gates were checked against what they actually did rather than what their names suggest. Several earlier claims about the pipeline were weaker than recorded.
+
+### Findings
+
+1. **eval-gate could pass without running.** Its steps fire only when the changed files match the classifier filter. Run #24 (the commit that fixed the filter, which touched only `ci.yml` and the logs) showed Evaluation Harness green in 5s with "Build course container" and "Run evaluation harness" both skipped: a green job that did no work. The filter watched `.agents/` and `.skills/` (empty placeholder folders) and `scripts/run-agent.sh` (which does not exist), not `agents/`, `skills/`, `CLAUDE.md`, or `scripts/run-agent.ps1`. Earlier "all jobs passed" claims for eval-gate are therefore unproven.
+2. **eval-gate would likely have failed on a clean checkout.** No `.log` file had ever been committed: the sandbox `.gitignore` carried `*.log` when the port commit (70f81a0) ran, so `git add` skipped them. `eval/test_deterministic.py` opens each transcript's sibling `.log` with no existence check. This is inferred from the code and an earlier local crash, not observed in CI.
+3. **governed-file-gate checked almost nothing.** Its four tests asserted that files exist and passed in 0.01s. Nothing compared the governance policy with the allow-lists, agent files, skills, or the harness's grant copies, so policy drift had no automated check. Earlier descriptions of this job as checking declared-versus-enforced policy were wrong.
+4. **Drift already existed.** Found by hand before the test did: planner `v2` in the policy against `v3` in its agent file; a stale "self-declared until Layer 2" sentence; a `tester` role in the coursetools allow-list and both harness copies, with no policy section or agent file; reviewer granted storage and retrieval operations that `agents/reviewer.md` never wired; the `verify-before-trusting` skill in no role's table; the harness grant map and `FORBIDDEN_OPERATIONS` stale (they keyed the Orchestrator as `orchestrator_review`).
+5. **coursetools failed open.** `coursetools_server.py` carried a hardcoded fallback allow-list (including `orchestrator` for `file_read` and `file_write`) that it used silently when `roles.allowlist.json` was missing. Reproduced: with the allow-list path pointing at a missing file, the original server started and exited 0.
+6. **The CI policy filter missed files.** `touches-policy` matched `allow-list.json` but not `roles.allowlist.json`, and `module3_doc/routing-and-tool-grant-map.json` was in neither filter.
+7. **Governed File Check was not a required status check, and "Require a pull request before merging" was off**, so a failing policy test could not have blocked a merge.
+
+### Changes, by commit
+
+- `be06568`: CI filter now watches `agents/`, `skills/`, `CLAUDE.md`, and `scripts/run-agent.ps1`; 13 `.log` siblings tracked. Verified on throwaway PR #2 (run #25, never merged): Evaluation Harness built the container and ran, reproducing HO-02 at 13/13 deterministic checks, and Governed File Check also ran.
+- `73425d0`: the retrieval audit log is now persisted (`RETRIEVAL_AUDIT_PATH` was never set, so its default sat outside the bind mount). Verified with a labeled entry that survived the container exiting.
+- `d50ab45`: the policy-vs-enforcement tests. On PR #3, Governed File Check **failed, 5 failed and 7 passed** (coursetools, agent files, skills, harness grant map, `FORBIDDEN_OPERATIONS`). Each message pointed at real drift; the passing tests showed the parser reads the real data.
+- `8f87663`: policy gains coursetools rows and the `verify-before-trusting` row, planner is `v3`, the stale ceiling text is corrected; reviewer trimmed (least privilege, since its agent file wires none of those tools); `tester` removed; the harness grant map and `FORBIDDEN_OPERATIONS` rebuilt from the policy; the CI policy filter now matches `roles.allowlist.json`. The commit's checks went green.
+- `ff1f03e`: coursetools now fails closed (it refuses to start without its allow-list); two tests guard it; `module3_doc/routing-and-tool-grant-map.json` added to both CI filters; ADR-005 updated. Governed File Check passed 14 tests in CI, including both new coursetools tests (log retained).
+- Governed File Check was then made a required status check.
+
+### Harness re-score
+
+All 13 transcripts that have a `.log` were replayed through the old and the updated harness. 11 are unchanged, including HO-02 at 13/13, CAL-01-before at 8/13, and CAL-01-after at 13/13. Two changed. HO-04 went from 11/13 to 12/13: the old map had no `orchestrator` key, so a permitted `retrieve` was flagged. HO-06 went from 8/13 to 7/13: `forbidden_operations` now flags "orchestrator performed update_entry". The audit log records that call under `calling_role: "orchestrator"`, which the old table keyed as `orchestrator_review`, so the near-miss was previously undetected by that check. Scores quoted in earlier entries remain correct for the harness as it was then.
+
+### Validation not run in CI
+
+Deliberate-drift checks were run only in scratch copies of the repo, and each was caught by the intended test: widening the Orchestrator to `write_entry`; raising planner's retrieval ceiling; flipping a policy row; deleting a policy row; widening planner to `read_entry`; restoring the fallback server (caught by the new fail-closed test); and corrupting the real allow-list (caught by the positive control). The CI-level deliberate-drift test, a branch that widens an allow-list without touching the policy and should show a blocked merge, is still to do.
+
+### Limits and open items
+
+- The tests compare declared and configured grants. They do not test runtime behavior, and roles remain self-declared strings (ADR-005).
+- The harness still holds two copies of the grants, kept equal to the policy by the test. Deriving them from the policy would remove the duplication.
+- `CLAUDE.md` prose and `docs/routing-and-tool-grant-map.md` are not machine-checked. Both were corrected by hand in this pass (reviewer access, and decision-auditor's `codebase_search`).
+- The CI filters now cover every governed path, but nothing tests that a newly added governed file is covered.
+- The eval-gate regression check replays a frozen transcript. It shows the harness reproduces a known-good result and that the gate fires on prompt-file changes; it does not evaluate the behavior of a changed prompt.
+- Confirm "Require a pull request before merging" is enabled for `main`.
+- Sandbox leftovers still route to a `tester` role that no longer exists (`scripts/route_task_deterministic.py`, `eval/test_deterministic_router.py`).

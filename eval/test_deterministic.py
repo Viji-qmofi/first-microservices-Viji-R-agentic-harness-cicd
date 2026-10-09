@@ -42,20 +42,22 @@ MAX_DURATION_SECONDS = 900
 MAX_COST_USD = 2.00
 SIMILARITY_FLOOR = 0.65
 
-# planner has no storage-server access at all in this system (retrieval only).
-# implementer has write_entry only -- not read_entry/update_entry/delete_entry.
-# reviewer/tester are not yet implemented as real subagents; forbidden from
-# all storage operations until they are designed with real grants.
-# orchestrator_review may retrieve (stands in for reviewer's context-gathering)
-# but must not write to storage -- writing is implementer's job alone.
-# orchestrator_test performs no storage or retrieval operations at all.
+# Always-forbidden storage/retrieval operations per role, taken from the denials in
+# docs/governance-policy.md. eval/test_governed_files.py keeps this table equal to the
+# policy (test_harness_forbidden_operations_match_policy): edit the policy first, then this.
+# orchestrator_plan_review and orchestrator_diff_review are the Orchestrator's own review
+# steps and carry its denials. orchestrator_test is deterministic code: no storage or
+# retrieval operations at all.
 FORBIDDEN_OPERATIONS = {
-    "planner": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry"},
-    "implementer": {"read_entry", "list_entries", "update_entry", "delete_entry"},
-    "reviewer": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry"},
-    "tester": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry"},
-    "orchestrator_review": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry"},
-    "orchestrator_test": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry", "retrieve"},
+    "planner": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry", "audit_read"},
+    "implementer": {"read_entry", "list_entries", "update_entry", "delete_entry", "audit_read", "retrieve"},
+    "reviewer": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry", "audit_read", "retrieve"},
+    "spring-boot-reviewer": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry", "audit_read", "retrieve"},
+    "orchestrator": {"write_entry", "update_entry", "delete_entry"},
+    "decision-auditor": {"write_entry", "delete_entry", "audit_read", "retrieve"},
+    "orchestrator_plan_review": {"write_entry", "update_entry", "delete_entry"},
+    "orchestrator_diff_review": {"write_entry", "update_entry", "delete_entry"},
+    "orchestrator_test": {"write_entry", "read_entry", "list_entries", "update_entry", "delete_entry", "audit_read", "retrieve"},
 }
 
 

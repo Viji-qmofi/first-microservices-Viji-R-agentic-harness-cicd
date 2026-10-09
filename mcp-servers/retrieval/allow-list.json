@@ -1,7 +1,6 @@
 {
   "retrieve": {
     "planner": {"granted": true, "classification_ceiling": "internal"},
-    "reviewer": {"granted": true, "classification_ceiling": "internal"},
     "orchestrator": {"granted": true, "classification_ceiling": "confidential"}
   }
 }
