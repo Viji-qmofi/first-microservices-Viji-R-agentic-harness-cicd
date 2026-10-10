@@ -6,6 +6,8 @@ The classifier job `change-type-check` decides which conditional gates run, from
 
 A conditional gate that is not triggered still reports green, with every step skipped. Read a job's step list, not only its color.
 
+Every job that needs the container image builds it with up to three attempts and then once more from an AWS ECR Public mirror of the base image, because Docker Hub rate-limits the shared IP addresses of GitHub's runners (it returned `429 Too Many Requests` on the pull request for the audit-log template update). The fallback still fails closed: if the mirror build fails, so does the job.
+
 Required status checks on `main`, with "Require a pull request before merging" enabled: Policy Test Suite, Evaluation Harness, Governed File Check, and Pipeline Integrity Check. Not required: Advisory Code Review (advisory by design) and Audit Trail (it must always run, whatever else fails).
 
 The time limits below are documented targets. The workflow sets no `timeout-minutes` (see Known gaps).
@@ -60,7 +62,7 @@ The time limits below are documented targets. The workflow sets no `timeout-minu
 
 ## Step: Pipeline integrity check
 
-- Does: Inspects `.github/workflows/ci.yml` itself (not the code change) and confirms the pipeline's own safety invariants haven't been quietly weakened. Three checks: (1) none of `policy-gate`, `eval-gate`, or `pipeline-integrity` itself has `continue-on-error: true`; (2) `audit-trail` still exists and keeps `if: always()`; (3) `change-type-check` (the classifier) still exists.
+- Does: Inspects `.github/workflows/ci.yml` itself (not the code change) and confirms the pipeline's own safety invariants haven't been quietly weakened. Three checks: (1) none of `policy-gate`, `eval-gate`, `governed-file-gate`, or `pipeline-integrity` itself has `continue-on-error: true`; (2) `audit-trail` still exists and keeps `if: always()`; (3) `change-type-check` (the classifier) still exists.
 - Input: the workflow YAML file itself, parsed with `pyyaml` -- not the diff, not any other job's output.
 - Produces: `ci-artifacts/integrity-report.json` (`checks_run`, `errors`, `exitcode`, `gating_jobs_checked`), uploaded as the `integrity-report` artifact -- same naming convention as `policy-report.json`/`governed-file-report.json`.
 - Classification: gating, permanent. Same reasoning as `policy-gate`: this protects an invariant the team has agreed must always hold (the pipeline's own guardrails staying intact), so it is never a candidate for demotion to advisory -- an advisory integrity check would let exactly the kind of silent weakening it exists to catch slip through undetected.
