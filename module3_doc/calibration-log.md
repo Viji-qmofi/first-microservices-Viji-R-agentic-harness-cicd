@@ -240,3 +240,29 @@ Trigger: a pre-submission review of every tracked file against the brief's requi
 - **The natural test command was red.** `python3 -m pytest eval/` gave 2 failed and 32 passed on the merged `main`: one sample test read an ADR deleted earlier, and one needed a file that does not exist. CI never ran either, so nothing flagged them. After the cleanup the directory contains only tests that pass on a clean checkout.
 - **Evidence files** that had been left in the repository root were moved to `module4_doc/evidence/`.
 - **Delivery path declared** in `module4_doc/workflow-scoping.md`: no-deployment, with the constraints and what would change in a real deployment.
+
+
+## Entry: CI hardening, a registry rate limit and an unprotected gate (2026-10-12)
+
+Trigger: Docker Hub rate-limiting broke CI builds, and the CI audit record's `checks_run` list showed that the integrity check did not cover the governed gate.
+
+### Findings
+
+1. **Docker Hub returned 429 on the base-image pull.** The pull request for the audit-log template update failed Advisory Code Review twice with `429 Too Many Requests` while loading metadata for `maven:3.9-eclipse-temurin-21`. GitHub's runners share IP addresses, and Docker Hub rate-limits anonymous pulls per address. Advisory Code Review is not required, but Policy Test Suite is and builds the same image, so a transient 429 could have blocked a correct change.
+2. **The integrity check did not protect `governed-file-gate`.** The `checks_run` list in the CI audit record (`module4_doc/evidence/ci-audit-trail-5c91e35.json`) covered `policy-gate`, `eval-gate`, and the check itself, but not the gate that had just become required. Run locally against a workflow with `continue-on-error: true` on the governed gate, the previous checker passed (exit 0) and the new one failed, naming the job.
+3. **A limit that remains.** The checker can still be edited by the pull request it checks, and no test or filter covers that.
+
+### Changes
+
+- `3ce36fa` (PR #8): every image build retries three times with a 30-second pause, then falls back once to the AWS ECR Public mirror of the same base image (`public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-21`) through a new `BASE_IMAGE` build argument whose default is unchanged. The fallback still fails closed. The integrity checker now protects `governed-file-gate`. Before merging, the retry script's control flow was tested with stand-in commands: success on the first try (1 build), two failures then success (3 builds, no fallback), Docker Hub failing every time with the mirror working (4 builds, 1 fallback), and everything failing (exit 1).
+
+### Verification (deliberate tests on throwaway pull requests, never merged)
+
+- **PR #9, commit `8981372`:** `continue-on-error: true` was added to the governed gate. The required Pipeline Integrity Check failed after 9 seconds while the other six checks passed.
+- **PR #10, run 38285828142:** the base image was set to an unusable reference (`maven::does-not-exist-9.9`). Policy Test Suite went green: three build attempts failed, the job logged "Falling back to the AWS ECR Public mirror of the base image," and the build succeeded from `public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320`, the digest inspected beforehand. This exercised the retry and fallback logic. It did not reproduce a real rate limit, which cannot be triggered on demand.
+
+### Limits and open items
+
+- The fallback has only been exercised with a simulated failure, not a real 429.
+- The integrity checker and workflow files are not in the filters that trigger the governed gate (see Known gaps in `docs/ci-step-design.md`).
+- CI jobs still have no `timeout-minutes` and no explicit `permissions:` block (same list).
