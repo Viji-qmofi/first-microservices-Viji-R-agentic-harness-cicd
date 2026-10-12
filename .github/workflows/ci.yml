@@ -56,8 +56,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build course container
-        run: docker build -t agentic_engineer_4 .
+      - name: Build course container (retry, then fall back to a mirror)
+        run: |
+          for attempt in 1 2 3; do
+            docker build -t agentic_engineer_4 . && exit 0
+            echo "Build attempt $attempt failed."
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          echo "Falling back to the AWS ECR Public mirror of the base image."
+          docker build --build-arg BASE_IMAGE=public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-21 -t agentic_engineer_4 .
 
       - name: Run policy tests
         run: |
@@ -87,9 +94,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build course container
+      - name: Build course container (retry, then fall back to a mirror)
         if: needs.change-type-check.outputs.requires-governed-check == 'true'
-        run: docker build -t agentic_engineer_4 .
+        run: |
+          for attempt in 1 2 3; do
+            docker build -t agentic_engineer_4 . && exit 0
+            echo "Build attempt $attempt failed."
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          echo "Falling back to the AWS ECR Public mirror of the base image."
+          docker build --build-arg BASE_IMAGE=public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-21 -t agentic_engineer_4 .
 
       - name: Run governed-file checks
         if: needs.change-type-check.outputs.requires-governed-check == 'true'
@@ -121,9 +135,16 @@ jobs:
       - uses: actions/checkout@v4
 
     
-      - name: Build course container
+      - name: Build course container (retry, then fall back to a mirror)
         if: needs.change-type-check.outputs.requires-eval == 'true'
-        run: docker build -t agentic_engineer_4 .
+        run: |
+          for attempt in 1 2 3; do
+            docker build -t agentic_engineer_4 . && exit 0
+            echo "Build attempt $attempt failed."
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          echo "Falling back to the AWS ECR Public mirror of the base image."
+          docker build --build-arg BASE_IMAGE=public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-21 -t agentic_engineer_4 .
 
       - name: Run evaluation harness (regression check)
         if: needs.change-type-check.outputs.requires-eval == 'true'
@@ -157,8 +178,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build course container
-        run: docker build -t agentic_engineer_4 .
+      - name: Build course container (retry, then fall back to a mirror)
+        run: |
+          for attempt in 1 2 3; do
+            docker build -t agentic_engineer_4 . && exit 0
+            echo "Build attempt $attempt failed."
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          echo "Falling back to the AWS ECR Public mirror of the base image."
+          docker build --build-arg BASE_IMAGE=public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-21 -t agentic_engineer_4 .
 
       - name: Run advisory agentic review
         env:
