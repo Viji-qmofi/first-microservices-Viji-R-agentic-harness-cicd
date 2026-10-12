@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=maven:3.9-eclipse-temurin-21
+ARG BASE_IMAGE=maven::does-not-exist-9.9
 FROM ${BASE_IMAGE}
 
 WORKDIR /workspace
