@@ -107,7 +107,13 @@ A review of what each gate actually did, recorded in the CI-gates entry of `modu
 - `governed-file-gate` previously asserted only that files exist. It now runs 14 policy-versus-configuration tests (PR #3).
 - Governed File Check was made a required status check, and a pull request is now required before merging to `main`.
 
+## CI hardening (2026-10-12)
+
+- Docker Hub returned `429 Too Many Requests` on the base image during two builds of the audit-log template pull request. Every image build now retries three times and falls back once to an AWS ECR Public mirror (`3ce36fa`, PR #8). Verified on a throwaway pull request (PR #10, run 38285828142): an unusable base image failed three attempts, and the build then succeeded from the mirror (`sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320`). That test simulated an unavailable image; a real rate limit cannot be triggered on demand.
+- `pipeline-integrity` did not protect `governed-file-gate`, which was found from the `checks_run` list in a CI audit record. Added in `3ce36fa`. Verified on a throwaway pull request (PR #9, commit `8981372`): weakening the governed gate turned the required Pipeline Integrity Check red. Run locally, the previous checker passed the same weakened workflow.
+
 ## Known gaps
 
 - The workflow sets no `timeout-minutes`, so a hung job would run until GitHub's default limit. The time limits above are targets, not enforcement.
 - The workflow has no explicit `permissions:` block, so jobs use the repository's default token permissions instead of a stated least-privilege set.
+- The integrity checker and the workflow files are not in the filters that trigger the governed gate, so a change that shrinks the checker's protected set is caught by no test (identified 2026-10-12).

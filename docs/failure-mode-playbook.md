@@ -172,9 +172,9 @@ What to do when the pipeline misbehaves, looked up by symptom. Every entry is a 
 
 ### 19. A gate is quietly weakened
 - **Symptom:** `pipeline-integrity` fails with a message such as "gating job 'policy-gate' has continue-on-error: true."
-- **Caught by:** `pipeline-integrity`, and `policy-gate`'s own test. Both fired on the deliberate test.
+- **Caught by:** `pipeline-integrity`, which protects `policy-gate`, `eval-gate`, `governed-file-gate`, and itself; and, for `policy-gate`, that job's own test. Both fired on the first deliberate test. The governed gate was added to the checker after a gap was found, and a second deliberate test confirmed it.
 - **First response:** do not merge. Revert the workflow change. On `main`, treat it as a P0.
-- **Evidence:** the Verified section of `docs/ci-step-design.md` and `module4_doc/impact-report.md`.
+- **Evidence:** the Verified section of `docs/ci-step-design.md` and `module4_doc/impact-report.md`; and PR #9 (commit `8981372`), where adding `continue-on-error: true` to the governed gate turned the required Pipeline Integrity Check red.
 - **Status:** Exercised (a deliberate test on a throwaway branch).
 
 ### 20. A deterministic conversion regresses
@@ -182,6 +182,15 @@ What to do when the pipeline misbehaves, looked up by symptom. Every entry is a 
 - **First response:** revert the single conversion commit, since each conversion is designed to land as one clean revert.
 - **Evidence:** `docs/adr/ADR-001-orchestrator-test-deterministic-conversion.md` and the end-to-end regression entry (no regression found); the rollback note in ADR-002.
 - **Status:** Defined only. No regression has occurred, so the revert path has not been exercised.
+
+### 21. The container image cannot be pulled (registry rate limit)
+- **Symptom:** an image-building job fails within seconds with `429 Too Many Requests` on the base image's metadata request, before any project code runs.
+- **Usual cause:** GitHub's runners share IP addresses, and Docker Hub rate-limits anonymous pulls per address. Policy Test Suite and Advisory Code Review build the image on every pull request, so a required check can fail for a reason unrelated to the change.
+- **Caught by:** the failed build step. It hit Advisory Code Review twice on the pull request for the audit-log template update, which is not a required check. Had it hit Policy Test Suite, a correct change would have been blocked.
+- **First response:** re-run the failed job later. Do not bypass a required check.
+- **Prevention:** every image build now retries up to three times with a 30-second pause, then falls back once to the AWS ECR Public mirror of the same base image (commit `3ce36fa`). It still fails closed: if the mirror build fails, so does the job.
+- **Evidence:** the two failures above; and PR #10 (run 38285828142), where an unusable base image failed three attempts and the job then built successfully from the mirror. That test used an invalid image name, so it exercised the retry and fallback logic, not a real rate limit, which cannot be triggered on demand.
+- **Status:** Exercised.
 
 ---
 
