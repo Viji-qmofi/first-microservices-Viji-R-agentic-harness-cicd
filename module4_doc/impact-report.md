@@ -2,9 +2,17 @@
 
 ## Executive summary
 
-This system matured across four modules from an ungoverned, purely agentic pipeline into one with server-enforced role boundaries, a two-layer evaluation harness, CI/CD gating, and at least one step formally converted from LLM judgment to deterministic code with measured results. This report separates what was actually **measured** from what is **projected** -- no figure in the measured section is an estimate, and no figure in the projected section is presented as something that already happened.
+This system matured across four modules from an ungoverned, purely agentic pipeline into one with server-enforced role boundaries, a two-layer evaluation harness, CI/CD gating, and at least one step formally converted from LLM judgment to deterministic code with measured results. This report separates what was actually **measured** from what is **projected** -- every figure in the measured section comes from a recorded run, any estimate inside it is labeled as one, and no figure in the projected section is presented as something that already happened. The headline comparison re-ran the Module 1 baseline task on the final system and on two ungoverned controls: governance costs about 32% more per run and about 1 minute more, and it did not cause the warning-coverage failures seen on re-run (details below).
 
 ## Measured impact
+
+**Module 1 baseline vs final system** (`module4_doc/module1-comparison.md`): the Module 1 Run 001 prompt was re-run on the final governed system (2 runs) and on two controls with `CLAUDE.md` and `.mcp.json` removed (2 runs), same model, fresh container each time.
+- Quality: the July baseline passed (3/4/3, Scope Pass). All four re-runs failed Warning and Error Coverage (final: 2 and 1; controls: 2 and 1), so the failures occur with and without governance. The likely cause is the task: the repo now emits intentional runtime WARN/ERROR lines, and a narrow grep for Maven markers misses them.
+- Defect rate (proxy: share of runs failing the rubric): 1 of 4 in Module 1, 4 of 4 on re-run under strict scoring.
+- Cycle time: baseline 2m46s, controls about 5m38s, final Run 2 6m38s. Governance adds roughly 1 minute; most of the rise from July is Maven on a larger test suite (order-service tests grew from 1 to 41).
+- Cost per run: baseline $0.3494, controls about $0.38 (+9%, workload), final Run 2 $0.50 (+32% over controls, governance context). Figures are API-equivalent estimates from a Pro session.
+- Review latency: the baseline's ~2 minutes was an estimate and no re-run was timed, so this metric is reported as a gap.
+- Limits: small n, Final Run 1 timing unreliable (interrupted and resumed), repo changed since July so only control-to-final isolates governance.
 
 **`orchestrator_test` deterministic conversion** (`ADR-001`, `module3_doc/calibration-log.md`, 2026-09-25):
 - Latency: ~14s/run (agentic baseline, averaged over 3 runs) -> ~0.053s/run (deterministic, averaged over 3 runs) -- a ~264x reduction.
