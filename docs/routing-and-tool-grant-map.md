@@ -13,7 +13,7 @@ This table summarizes `docs/governance-policy.md`, which is the authoritative so
 
 ## Converted steps
 
-- `orchestrator_test` (Maven test-result interpretation): converted to deterministic code, no MCP access required (ADR-001).
+- `orchestrator_test` (Maven test-result interpretation): converted to deterministic code, no MCP access required (ADR-001). This is the system's tester function. There is deliberately no separate tester role (`ADR-006` rejects it): writing tests belongs to `implementer`, and judging their adequacy belongs to `reviewer`.
 - Line-ending-noise detection during diff review: readiness package only, not implemented -- see ADR-002. Recommended design (if ever built) uses no MCP access; it's a local `git diff` operation.
 
 ## Known limitation, documented not hidden

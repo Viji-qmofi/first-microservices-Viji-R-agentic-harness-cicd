@@ -13,7 +13,7 @@ flowchart TD
     D --> D2[tool_call: write_entry, optional<br/>-- one new lesson, if warranted]
     D2 --> E[orchestrator_diff_review:<br/>git diff --ignore-all-space<br/>vs. claimed scope]
     E -->|scope mismatch| END2[Stop, report to human]
-    E -->|scope matches| F[orchestrator_test: deterministic<br/>scripts/parse_test_result_deterministic.py<br/>ADR-001 -- no model call]
+    E -->|scope matches| F["orchestrator_test = the tester function<br/>DETERMINISTIC, no model call<br/>scripts/parse_test_result_deterministic.py<br/>ADR-001"]
     F -->|invalid| G2[Send failure back<br/>to implementer]
     G2 --> D
     F -->|valid| G[reviewer and/or<br/>spring-boot-reviewer:<br/>independent diff review]
@@ -25,12 +25,16 @@ flowchart TD
 
     K[decision-auditor: separate,<br/>on-demand invocation] -.->|checks .memory/project/<br/>records against real git state| L[(.memory/project/)]
 
+    classDef deterministic fill:#d9f2d9,stroke:#2e7d32,stroke-width:3px,color:#000
+    class F deterministic
+
     M[["MCP boundary layer -- every tool call<br/>from every role above passes through<br/>coursetools / storage / retrieval,<br/>each enforcing _authorize() deny-by-default<br/>per role (ADR-005)"]]
 ```
 
 ## Reading this diagram
 
 - **Deterministic step, explicitly marked:** `orchestrator_test` makes no model call at all -- it runs a script (`scripts/parse_test_result_deterministic.py`) that parses Maven's own test-result summary line directly. This step was agentic through Module 4.2; ADR-001 documents the conversion, with measured before/after evidence.
+- **There is no separate tester role; testing is a step.** The green box is the tester function: deterministic code that runs `./mvnw test` and returns a structured pass or fail. A separate tester agent was rejected in `ADR-006`.
 - **Two distinct orchestrator review points**, not one generic "review" step: `orchestrator_plan_review` (before any code exists) and `orchestrator_diff_review` (after implementation, checking the actual diff against the approved scope). Each can send work back rather than proceeding.
 - **Human checkpoints have explicit trigger criteria**, not a blanket "ask every time": one fires specifically when a plan proposes an externally-visible behavior change; the unconditional one fires before every commit regardless of how the run went; a third fires only when two reviewers genuinely disagree on the same section (never self-resolved by the Orchestrator).
 - **`decision-auditor` is not part of the main plan-implement-review sequence.** It's a separately-invoked role, checking existing `.memory/project/` records against real git state on its own schedule, not a step every task passes through.
