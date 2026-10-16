@@ -10,7 +10,7 @@ Every job that needs the container image builds it with up to three attempts and
 
 Required status checks on `main`, with "Require a pull request before merging" enabled: Policy Test Suite, Evaluation Harness, Governed File Check, and Pipeline Integrity Check. Not required: Advisory Code Review (advisory by design) and Audit Trail (it must always run, whatever else fails).
 
-The time limits below are enforced with `timeout-minutes` on every job (change-type-check 5, policy-gate 20, governed-file-gate 20, eval-gate 25, advisory-review 20, pipeline-integrity 5, audit-trail 10).
+Every job has a hard `timeout-minutes` ceiling that GitHub enforces (change-type-check 5, policy-gate 20, governed-file-gate 20, eval-gate 25, advisory-review 20, pipeline-integrity 5, audit-trail 10). The per-step "Time limit" figures below are targets inside those ceilings.
 
 ## Step: Policy test suite
 

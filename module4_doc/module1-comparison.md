@@ -56,6 +56,6 @@ All four re-runs scored Build Result Accuracy 3, Recommendation Consistency 3 an
 - Review latency was timed once (n=1). The reviewer had already built the answer key, and the four scores were not written down during the timing, so about 2.5 minutes slightly understates a full scoring pass.
 - The Scope Discipline reading is ambiguous: CLAUDE.md startup reads versus "run nothing beyond the build". All runs were scored Pass on the Run 002 precedent (read-only commands only).
 
-## 7. Follow-up (planned)
+## 7. Follow-up (done): prompt clarification
 
-A prompt-clarification iteration: define "warning" as runtime WARN/ERROR lines and re-score, as a before/after entry in the iteration log. More timed reviews, ideally by someone who has not seen the answer key, would tighten the review-latency figure.
+The prompt-clarification iteration was run. Run 005 named runtime WARN/ERROR lines and scored Warning Coverage 2 (up from 1) but failed Scope Discipline. Run 006 added JVM warnings and a /tmp-only rule and passed at 3/4/3. An identical rerun of Run 006 scored 2 and failed on a false "JVM warnings: None". Full scores are in `docs/iteration-log.md`. The prompt change helps but is not reliable on its own. More timed reviews, ideally by someone who has not seen the answer key, would tighten the review-latency figure.
