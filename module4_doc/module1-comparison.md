@@ -38,7 +38,7 @@ All four re-runs scored Build Result Accuracy 3, Recommendation Consistency 3 an
 
 **Cost per run.** Baseline $0.3494. Controls average about $0.38 (about +9% over baseline, attributable to workload and environment). Final Run 2 $0.50 (about +32% over controls, attributable to governance context).
 
-**Review latency.** The baseline value of about 2 minutes was an estimate. No re-run was timed. This metric is not comparable and is reported as a gap.
+**Review latency.** The baseline value of about 2 minutes was an estimate. One re-run review was then timed: reading the Final Run 2 report and checking it against the answer key took about 2.5 minutes. The two figures are close, so there is no evidence that governance changes review time. The measured figure is a single observation, with the caveats in section 6.
 
 ## 5. Reading
 
@@ -53,9 +53,9 @@ All four re-runs scored Build Result Accuracy 3, Recommendation Consistency 3 an
 - Final Run 1 timing is unreliable (interrupted and resumed).
 - Cost is from a Claude Pro session, so figures are API-equivalent estimates.
 - Cycle times for the re-runs come from the agent's elapsed-time lines and the status line, not one uniform clock.
-- Review latency was untimed.
+- Review latency was timed once (n=1). The reviewer had already built the answer key, and the four scores were not written down during the timing, so about 2.5 minutes slightly understates a full scoring pass.
 - The Scope Discipline reading is ambiguous: CLAUDE.md startup reads versus "run nothing beyond the build". All runs were scored Pass on the Run 002 precedent (read-only commands only).
 
 ## 7. Follow-up (planned)
 
-A prompt-clarification iteration: define "warning" as runtime WARN/ERROR lines and re-score, as a before/after entry in the iteration log. A third clean final run with a timed review would close the review-latency gap.
+A prompt-clarification iteration: define "warning" as runtime WARN/ERROR lines and re-score, as a before/after entry in the iteration log. More timed reviews, ideally by someone who has not seen the answer key, would tighten the review-latency figure.

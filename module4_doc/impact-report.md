@@ -11,7 +11,7 @@ This system matured across four modules from an ungoverned, purely agentic pipel
 - Defect rate (proxy: share of runs failing the rubric): 1 of 4 in Module 1, 4 of 4 on re-run under strict scoring.
 - Cycle time: baseline 2m46s, controls about 5m38s, final Run 2 6m38s. Governance adds roughly 1 minute; most of the rise from July is Maven on a larger test suite (order-service tests grew from 1 to 41).
 - Cost per run: baseline $0.3494, controls about $0.38 (+9%, workload), final Run 2 $0.50 (+32% over controls, governance context). Figures are API-equivalent estimates from a Pro session.
-- Review latency: the baseline's ~2 minutes was an estimate and no re-run was timed, so this metric is reported as a gap.
+- Review latency: the baseline's ~2 minutes was an estimate. One timed review of a re-run report took about 2.5 minutes (n=1, reviewer already knew the answer key), so there is no evidence governance changes review time.
 - Limits: small n, Final Run 1 timing unreliable (interrupted and resumed), repo changed since July so only control-to-final isolates governance.
 
 **`orchestrator_test` deterministic conversion** (`ADR-001`, `module3_doc/calibration-log.md`, 2026-09-25):
