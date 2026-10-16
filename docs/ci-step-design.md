@@ -10,7 +10,7 @@ Every job that needs the container image builds it with up to three attempts and
 
 Required status checks on `main`, with "Require a pull request before merging" enabled: Policy Test Suite, Evaluation Harness, Governed File Check, and Pipeline Integrity Check. Not required: Advisory Code Review (advisory by design) and Audit Trail (it must always run, whatever else fails).
 
-The time limits below are documented targets. The workflow sets no `timeout-minutes` (see Known gaps).
+The time limits below are enforced with `timeout-minutes` on every job (change-type-check 5, policy-gate 20, governed-file-gate 20, eval-gate 25, advisory-review 20, pipeline-integrity 5, audit-trail 10).
 
 ## Step: Policy test suite
 
@@ -114,6 +114,6 @@ A review of what each gate actually did, recorded in the CI-gates entry of `modu
 
 ## Known gaps
 
-- The workflow sets no `timeout-minutes`, so a hung job would run until GitHub's default limit. The time limits above are targets, not enforcement.
+- Timeouts were added after the first draft of this document, which had listed their absence as a gap. A hung job is now cancelled at its limit. These are fixed ceilings, not tuned to measured run times.
 - The workflow has no explicit `permissions:` block, so jobs use the repository's default token permissions instead of a stated least-privilege set.
 - The integrity checker and the workflow files are not in the filters that trigger the governed gate, so a change that shrinks the checker's protected set is caught by no test (identified 2026-10-12).

@@ -72,8 +72,13 @@ def main() -> int:
     print(rub_output)
 
     if rub_code != 0:
-        print("FAIL: rubric regression check did not reproduce a clean result "
-              "on a transcript that previously scored 4/4.")
+        if "judge invocation failed" in rub_output:
+            print("FAIL (infrastructure, not a regression): the rubric judge could not run. "
+                  "Read the error above (for example an API credit or authentication problem). "
+                  "The gate still fails closed.")
+        else:
+            print("FAIL: rubric regression check did not reproduce a clean result "
+                  "on a transcript that previously scored 4/4.")
         return 1
 
     print("PASS: eval-gate regression check reproduced the known-good result.")

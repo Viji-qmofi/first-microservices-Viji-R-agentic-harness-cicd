@@ -148,9 +148,9 @@ def call_anthropic(prompt: str) -> str:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
-        return f"## Advisory Code Review\n\nAnthropic API request failed: HTTP {exc.code}\n\n```text\n{detail[:2000]}\n```"
+        return f"## Advisory Code Review: NOT PERFORMED\n\nAnthropic API request failed: HTTP {exc.code}\n\n```text\n{detail[:2000]}\n```"
     except Exception as exc:
-        return f"## Advisory Code Review\n\nAnthropic API request failed: `{exc}`"
+        return f"## Advisory Code Review: NOT PERFORMED\n\nAnthropic API request failed: `{exc}`"
 
     blocks = data.get("content", [])
     text_parts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
@@ -205,6 +205,9 @@ def main() -> int:
 
         review = call_anthropic(prompt)
 
+    if review.startswith("## Advisory Code Review: NOT PERFORMED"):
+        # Advisory stays non-blocking, but a review that never ran must not look like a pass.
+        print("::warning title=Advisory review NOT performed::The Anthropic API request failed. See the advisory-review artifact.")
     (OUT_DIR / "review-output.md").write_text(review + "\n", encoding="utf-8")
 
     audit = {
