@@ -21,6 +21,12 @@ Do not fully automate the decision of what to do with a line-ending-only diff. I
 
 Expected benefits, if implemented: faster, cheaper categorization for the routine 95% of diffs, freeing the Orchestrator's own reasoning for the cases that genuinely need it (deciding what a line-ending-only label means for this specific task) rather than re-deriving the category from scratch every time. Known trade-off: this conversion is deliberately incomplete -- it does not remove judgment from the workflow, only from the mechanical labeling step, so the token-cost/latency savings are smaller than a full conversion like orchestrator_test's. To watch if ever implemented: confirm the categorization script never silently causes a deliberate line-ending fix to be excluded without the human seeing it labeled as such first.
 
+## Open risks
+
+- This is a readiness package only. Nothing is implemented, so none of the expected benefits are measured.
+- A categorization script that is wrong in the rare deliberate-line-ending case could hide a change that mattered, as `docker-entrypoint.sh` did once. The design keeps the accept-or-exclude decision with the human or the Orchestrator for exactly this reason.
+- The recommendation could change if the deliberate-fix pattern recurs, or never recurs across several calibration cycles.
+
 ## Evidence
 
 - Classification: docs/step-classification.md, "Line-ending-noise detection during diff review" entry, weak candidate.

@@ -21,6 +21,18 @@ Split persistent memory into three layers by volatility and write permission: La
 
 The three-layer split, plus a pre-commit hook (scripts/hooks/pre-commit) that scans .memory/ for credential patterns before every commit, gives this project a working, enforced data-classification boundary (Public/Internal/Confidential/Secret, documented in the same file) -- not just a policy statement. This has held up under real, adversarial testing: Module 2 Exercise 2.4 deliberately attempted to store a fake secret in memory and the guardrail caught it. Known trade-off: a three-way split adds real complexity an agent must reason about correctly every time it writes (which layer does this belong in) -- mitigated by the allocation decision table in memory-architecture.md giving concrete worked examples rather than only an abstract rule. Open risk: the graduation criterion ("reapplied, not re-decided, a second time") is itself a judgment call about what counts as the "same" pattern being reapplied versus a genuinely new, superficially similar decision -- this has not yet been tested against a genuinely ambiguous case.
 
+## Open risks
+
+- The graduation criterion ("reapplied, not re-decided, a second time") is a judgment call about what counts as the same pattern. It has not been tested against a genuinely ambiguous case.
+- Layer 1 entries can still go stale between reviews. The `decision-005` incident below shows this, and `decision-auditor` exists to catch it, but it runs on demand and not on a schedule.
+
 ## Evidence
 
 module2_doc/memory-architecture.md -- "Alternatives considered" section (the Layer 1-to-Layer 2 graduation story) and "Allocation decision table," both written at design time, not reconstructed afterward. Guardrail enforcement confirmed working under adversarial test: Module 2 Exercise 2.4's sensitive-data storage test, caught by the pre-commit hook before any secret reached a committed memory file.
+
+## Later evidence (2026-10-16)
+
+This section was added after the Module 3 and Module 4 work. The decision text above is unchanged.
+
+- **Rejected alternative: a single, undifferentiated memory store.** The case for separating mutable project state from stable conventions is reinforced by `decision-005.md`'s "Not yet committed" status. Its staleness was independently rediscovered four times, by four different agents (HO-01, HO-03, HO-05 and the Module 4 activation exercise), none of whom had the job of fixing it. `decision-auditor` was then built for that gap and corrected two related stale records (`decision-001`'s placeholder review date and `decision-004`'s build status). Mutable Layer 1 state with no review discipline drifted. The stable convention in Layer 2 did not (`module3_doc/calibration-log.md`, `module4_doc/decision-auditor-case-study.md`).
+- **Pruning in practice.** On 2026-10-16 `decision-002` was archived with a documented reason, the first entry moved to the archive (`.memory/project/MEMORY_INDEX.md`).

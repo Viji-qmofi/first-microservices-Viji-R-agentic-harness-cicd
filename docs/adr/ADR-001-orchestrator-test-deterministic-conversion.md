@@ -21,6 +21,12 @@ Replace the Orchestrator's narrative interpretation of `./mvnw test` output with
 
 Measured benefits: ~264x lower latency and 100% token-cost elimination for a question ("did the tests pass") that has exactly one correct answer, plus perfectly repeatable output (confirmed via diff, not assumed) and a step fully auditable by reading under 90 lines of Python rather than a transcript. Known trade-off, unchanged from the original context: if a future testing framework changes Maven's Surefire output format, or if the Orchestrator ever needs to reason about *why* a specific test failed rather than just whether the suite passed, this narrow script would not cover that. Watched and confirmed: the script was integrated into the live workflow and four real orchestrated runs showed no regression attributable to it (see Evidence). Isolated measurement alone was not treated as sufficient grounds to accept this ADR, which is why acceptance waited for those runs.
 
+## Open risks
+
+- If a future Maven or Surefire release changes the summary line's format, the parser would stop matching. It then returns `valid: false`, which fails safe, but it would block every run until fixed.
+- The script reports whether the suite passed, not why a test failed. If the Orchestrator ever needs to reason about causes, this step does not cover it.
+- `CLAUDE.md` says what to do when the script returns `valid: false`. It does not say what to do if the script itself crashes or is missing. This is a documented gap, not a decision.
+
 ## Evidence
 
 - Classification: docs/step-classification.md, orchestrator_test entry, strong candidate.
