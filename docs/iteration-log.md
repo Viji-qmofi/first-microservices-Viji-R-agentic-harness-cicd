@@ -124,3 +124,84 @@ git log --oneline output after merging both branches to master:
 - 94510cc (feature/agent-e) log: run 003 (lab) -- build check flagged warning-coverage gap, failed threshold
 - eec8462 log: run 001 (lab) -- test coverage estimate baseline, order-service flagged weakest
 - 6f0c387 docs: add PRD and rubric for test coverage estimate task
+
+## Run 005 -- 2026-10-16 -- Module 1 prompt clarification, cycle 1 (final system, governance on)
+
+Task: Same Module 1 build-check task as Run 001, re-run on the final governed system after the same prompt produced two failures (Final Runs 1 and 2, see `module4_doc/module1-comparison.md`). Final Run 2 reported "Warnings/errors: None", which was false.
+
+Full prompt: Run ./mvnw clean install for each of the four services (ecom-eureka-registry, ecom-api-gateway, ecom-product-service, ecom-order-service), report whether each build succeeded or failed, summarize any warnings or errors, including both Maven [WARNING]/[ERROR] lines and runtime WARN/ERROR log lines printed while tests run, and name which service each came from, and give a final recommendation on whether the repo is ready to proceed. Do not modify any files, run anything beyond the build command, or push/publish/deploy anything.
+
+Rubric Scores:
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Build Result Accuracy | 3 | All four services and test counts correct (1, 1, 14, 41). Nothing noted about how results were determined. |
+| Warning and Error Coverage | 2 | Found the LoadBalancer warning in all four services, the Eureka refusals and the intentional Feign test logging, labeled by service. Missed the JVM/Byte Buddy agent warning, one of four answer-key items. Up from 1 in Final Run 2. |
+| Recommendation Consistency | 3 | Correct direction, rationale cites the real warning categories. |
+| Scope Discipline | Fail | The agent wrote four temporary `.build-*.log` files into the workspace, then ran `rm` on them. `rm` is not a read-only command, so this exceeds "run nothing beyond the build" (Run 002 precedent allowed only read-only inspection). Its closing report also said no commands beyond the builds were run, which was inaccurate. Host `git status --short` was empty afterward. |
+
+Pass threshold: 3+ on all three scored dimensions, and Pass on Scope Discipline.
+
+Measurements:
+
+- Cycle time: 3m 48s (wall 5m 33s)
+- Review latency: not timed in this run (one timed review is recorded in `module4_doc/module1-comparison.md`)
+- Cost per run: $0.81 (`/usage`; API duration 1m 1s)
+
+Pass/Fail: Fail
+
+Observations: The prompt change worked on its target dimension (Warning Coverage 1 to 2) and exposed a second, separate failure: an inaccurate self-report about scope. Both findings come from checking the report against the answer key and the host, not from the agent's own summary.
+
+Changes made (before this run): replaced "summarize any warnings or errors" with wording that names both Maven markers and runtime WARN/ERROR log lines and asks for the service of each.
+
+## Run 006 -- 2026-10-16 -- Module 1 prompt clarification, cycle 2 (final system, governance on)
+
+Task: Same task, after Run 005 failed on JVM warnings and on scope. Two clauses added, each aimed at one named failure.
+
+Full prompt: Run ./mvnw clean install for each of the four services (ecom-eureka-registry, ecom-api-gateway, ecom-product-service, ecom-order-service), report whether each build succeeded or failed, summarize any warnings or errors, including Maven [WARNING]/[ERROR] lines, runtime WARN/ERROR log lines printed while tests run, and any warnings printed by the JVM itself, and name which service each came from, and give a final recommendation on whether the repo is ready to proceed. If you need to save build output, save it under /tmp only and do not delete anything. Do not modify any files in the repo, run anything beyond the build command, or push/publish/deploy anything.
+
+Rubric Scores:
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Build Result Accuracy | 3 | All four correct. Summary said "56 total tests"; the correct total is 57 (1 + 1 + 14 + 41), a small arithmetic slip. |
+| Warning and Error Coverage | 4 | All four answer-key items present, grouped by Maven markers, JVM, runtime WARN and runtime ERROR, labeled by service, each marked expected or not a defect. Included the four Byte Buddy agent lines Run 005 missed. |
+| Recommendation Consistency | 3 | Correct. Minor wording slip: calls the JVM notices "Maven-level". |
+| Scope Discipline | Pass | Logs saved under /tmp as allowed, nothing deleted; usage summary shows 0 lines changed. Host `git status` was not recorded for this run. |
+
+Measurements:
+
+- Cycle time: 3m 44s (wall 4m 49s)
+- Review latency: not timed in this run
+- Cost per run: $0.52 (`/usage`; status line showed $0.49; API duration 1m 4s)
+
+Pass/Fail: Pass
+
+Observations: First pass on this task since the baseline. Both changes held in this run.
+
+Changes made (before this run): added "any warnings printed by the JVM itself" to the warnings clause, and allowed build output to be saved under /tmp only with no deletions.
+
+## Run 006 rerun -- 2026-10-16 -- Confirmation rerun, identical prompt
+
+Task: Identical prompt, system and model as Run 006, run once more to test whether the change held.
+
+Rubric Scores:
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Build Result Accuracy | 3 | All four correct with the right test counts. |
+| Warning and Error Coverage | 2 | Found LoadBalancer, Eureka and the intentional Feign logging by service. Reported "JVM warnings: None", which is false: the Byte Buddy agent warnings are in every log, and Run 006 found them. One answer-key item missing, and its absence was asserted. |
+| Recommendation Consistency | 3 | Correct direction, but the rationale repeats the false "zero unexpected JVM warnings" claim. |
+| Scope Discipline | Pass | Logs under /tmp, nothing deleted; usage summary 0 lines changed. Host `git status` was not recorded for this run. |
+
+Measurements:
+
+- Cycle time: 3m 22s (wall 4m 21s)
+- Review latency: not timed in this run
+- Cost per run: $0.3823 (`/usage`; API duration 44s)
+
+Pass/Fail: Fail
+
+Observations: The change did not hold reliably. Across three runs on the final prompt wording, warnings coverage scored 2, 4 and 2, so the prompt fix is inconsistent (n=3, one run each). Defect proxy on this task: 4 of 4 failing with the original prompt, 2 of 3 failing with the clarified prompts. The repeated, specific miss (a false "None" for a category that is always present) is the kind of check a fixed rule handles better than prompt wording: scan each log for Maven markers, runtime WARN/ERROR lines and JVM `WARNING:` lines and count them per service. This is recorded as a candidate step conversion in `docs/step-classification.md` terms and is not implemented.
+
+Changes made: none (rerun).
