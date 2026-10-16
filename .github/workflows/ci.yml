@@ -10,6 +10,7 @@ jobs:
   change-type-check:
     name: Change Classifier
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       changed-files: ${{ steps.classify.outputs.changed-files }}
       requires-governed-check: ${{ steps.classify.outputs.requires-governed-check }}
@@ -52,6 +53,7 @@ jobs:
   policy-gate:
     name: Policy Test Suite
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: change-type-check
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +92,7 @@ jobs:
   governed-file-gate:
     name: Governed File Check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [change-type-check, policy-gate]
     steps:
       - uses: actions/checkout@v4
@@ -130,6 +133,7 @@ jobs:
   eval-gate:
     name: Evaluation Harness
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [change-type-check, policy-gate]
     steps:
       - uses: actions/checkout@v4
@@ -172,6 +176,7 @@ jobs:
   advisory-review:
     name: Advisory Code Review
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [change-type-check, policy-gate]
     if: github.event_name == 'pull_request'
     continue-on-error: true
@@ -216,6 +221,7 @@ jobs:
   pipeline-integrity:
     name: Pipeline Integrity Check
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # No `needs:` deliberately -- this job must run regardless of whether
     # other jobs succeed, fail, or get skipped, since its whole purpose is
     # catching a weakened gate. Depending on another job's success would
@@ -248,6 +254,7 @@ jobs:
   audit-trail:
     name: Audit Trail
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [change-type-check, policy-gate, governed-file-gate, eval-gate, pipeline-integrity, advisory-review]
     if: always()
     steps:

@@ -44,7 +44,8 @@ def call_judge(prompt):
         timeout=180,
     )
     if completed.returncode != 0:
-        raise RuntimeError(f"judge invocation failed: {completed.stderr.strip()}")
+        detail = completed.stderr.strip() or completed.stdout.strip()[:500]
+        raise RuntimeError(f"judge invocation failed: {detail}")
     envelope = json.loads(completed.stdout)
     return envelope["result"]
 
