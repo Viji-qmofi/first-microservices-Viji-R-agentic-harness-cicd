@@ -96,6 +96,22 @@ author (Viji R).
 - `agent-summary.md` (71 lines) appeared in the repo root on the host after exiting the container — confirms `/workspace` writes persist.
 - Inside the container, `/workspace` showed only the four `ecom-*` service folders plus `README.md`; the host home directory was not visible — confirms the mount boundary held.
 
+## Parallel-session isolation
+
+Concurrent agent sessions are kept apart in three ways:
+
+- **Separate working trees.** Each session gets its own `git worktree` (its own directory and branch), and that directory, not the main checkout, is what is mounted at `/workspace`. One session's file writes cannot touch another's working tree. `.memory/storage/` is git-ignored, so each worktree also gets its own storage database and audit logs.
+- **Separate containers.** Each session is its own `docker run --rm` container from the same image: its own filesystem, its own processes, discarded on exit.
+- **Merge, not shared state.** Work comes back through git: each branch is reviewed and merged on its own.
+
+Evidence: the Module 1 lab ran Worktree E and Worktree F as concurrent isolated sessions and merged both branches (`docs/iteration-log.md`, Runs 003 and 004, with the merge log).
+
+Known limits, not hidden:
+
+- The `claude-auth` volume holds one Claude login and is shared by every container that mounts it. That is deliberate (one account), but it is a shared credential.
+- Two containers cannot publish the same host ports (8001, 8002, 6274, 6277). A second concurrent session needs different host ports or none.
+- Isolation is by convention plus Docker and git, and there is no automated test that proves two sessions cannot interfere.
+
 ## Network egress check
 
 Verified with two paired tests: one under `--network none` (should block all egress), one under the default network (should succeed) — proving the restricted mode genuinely restricts, and that the default mode isn't open by accident.

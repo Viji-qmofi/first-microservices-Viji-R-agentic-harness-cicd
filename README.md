@@ -84,6 +84,16 @@ Two layers (`eval/`): deterministic checks (`eval/test_deterministic.py`) gate a
 - **Deterministic conversion**: `docs/step-classification.md` tracks which agentic steps have been evaluated for conversion. `orchestrator_test` has been converted (`ADR-001`, real measured ~264x latency reduction and complete token-cost elimination). A second step was evaluated and correctly kept agentic (`ADR-002`) based on a real counterexample in this project's own history.
 - **Red-team results**: `eval/red-team-results.md` -- governance boundaries tested directly, including one organic finding (a subagent fabricating a false security claim, caught under pressure to produce evidence).
 
+## Where to find the evidence
+
+- **Quality spec and baseline:** [`docs/prd.md`](docs/prd.md), [`docs/rubric.md`](docs/rubric.md) (scoring guide with examples at all four levels, pass threshold), [`docs/iteration-log.md`](docs/iteration-log.md) (baseline Run 001 and later runs), [`module4_doc/module1-comparison.md`](module4_doc/module1-comparison.md)
+- **Agents, skills, memory:** `agents/`, `skills/`, [`module2_doc/memory-architecture.md`](module2_doc/memory-architecture.md), [`.memory/project/MEMORY_INDEX.md`](.memory/project/MEMORY_INDEX.md) (active and archived entries). Reflection log: the "Lesson Learned" entries in [`module2_doc/iteration-log.md`](module2_doc/iteration-log.md)
+- **Orchestration and MCP:** [`docs/orchestration-diagram.md`](docs/orchestration-diagram.md), [`docs/routing-and-tool-grant-map.md`](docs/routing-and-tool-grant-map.md), `mcp-servers/` (storage, retrieval with schema and allow-list), [`module3_doc/retrieval-quality-report.md`](module3_doc/retrieval-quality-report.md)
+- **Evaluation and calibration:** [`module3_doc/holdout-task-set.md`](module3_doc/holdout-task-set.md), [`module3_doc/calibration-log.md`](module3_doc/calibration-log.md), run transcripts and logs in `.eval-artifacts/holdout-run-1/` (HO-01 to HO-06)
+- **Governance and CI/CD:** [`docs/governance-policy.md`](docs/governance-policy.md), [`eval/red-team-prompts.md`](eval/red-team-prompts.md) and [`eval/red-team-results.md`](eval/red-team-results.md), [`docs/ci-step-design.md`](docs/ci-step-design.md), [`docs/failure-mode-playbook.md`](docs/failure-mode-playbook.md)
+- **Decisions and conversions:** [`docs/adr/`](docs/adr/), [`docs/step-classification.md`](docs/step-classification.md)
+- **Impact:** [`module4_doc/impact-report.md`](module4_doc/impact-report.md), [`module4_doc/tool-evolution-drill.md`](module4_doc/tool-evolution-drill.md)
+
 ## Where Things Live
 
 ```
