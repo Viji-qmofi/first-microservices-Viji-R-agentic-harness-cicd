@@ -33,6 +33,8 @@ flowchart TD
     M[["MCP boundary layer -- every tool call<br/>from every role above passes through<br/>coursetools / storage / retrieval,<br/>each enforcing _authorize() deny-by-default<br/>per role (ADR-005)"]]
 ```
 
+A rendered image of this diagram, for viewers that clip long labels: [`orchestration-diagram.png`](orchestration-diagram.png).
+
 ## Reading this diagram
 
 - **Deterministic step, explicitly marked:** `orchestrator_test` makes no model call at all -- it runs a script (`scripts/parse_test_result_deterministic.py`) that parses Maven's own test-result summary line directly. This step was agentic through Module 4.2; ADR-001 documents the conversion, with measured before/after evidence.
