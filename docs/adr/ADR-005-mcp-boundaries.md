@@ -21,6 +21,12 @@ Enforce role boundaries server-side, independently at each of the three MCP serv
 
 Three independent server-side boundaries now exist where there was effectively zero before storage/retrieval's `_authorize()` additions. Known, explicitly documented limitation, not hidden: every check still authorizes against a *self-declared* `calling_role`/`role` parameter -- confirmed directly by a test where the Orchestrator successfully called `write_entry` claiming `calling_role="implementer"` and the call succeeded normally, indistinguishable from the real `implementer` subagent. This is an accepted, architecturally-forced limitation (subagents share one Orchestrator container rather than each running as a separately-identifiable process), not an oversight -- documented in CLAUDE.md and docs/routing-and-tool-grant-map.md so it is never mistaken for verified identity. Open risk: a future environment where subagents genuinely run as separate processes could close this gap with real process-level identity; worth revisiting if this architecture changes.
 
+## Open risks
+
+- Roles are self-declared strings, not verified identities. A caller that states a role it is not will have the claim accepted. This was confirmed by a direct test and applies to every grant.
+- If subagents ever run as separate processes, process-level identity could close this gap.
+- `coursetools` has no audit log of its own, so its denials are not recorded the way storage and retrieval denials are.
+
 ## Evidence
 
 module3_doc/calibration-log.md: the original `.memory/` bypass finding (Module 3.2) and the HO-06 near-miss (Module 3 Lab). CLAUDE.md, Storage and Retrieval Access section: the self-declaration limitation, confirmed by direct test. eval/enforcement-verification.md: Layer 2 storage and retrieval verification, including the real negative test (orchestrator denied `update_entry`), positive control (implementer's `write_entry` still works), and the retrieval ceiling-capping three-way test (denied / capped-to-empty / genuinely granted).

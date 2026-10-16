@@ -21,6 +21,17 @@ Keep exactly as many subagents as there are genuinely distinct, independently-sc
 
 Routing stays simple to reason about precisely because role count stays minimal: `docs/routing-and-tool-grant-map.md` has six rows, not an ever-growing list accumulated for convenience. Retiring `reviewer_strict`/`reviewer_lenient` meant real git history work (deleting the agent files, removing their coursetools allow-list entries) rather than just leaving unused scaffolding in place -- a small cost, paid once, in exchange for a routing map that reflects what the system actually does rather than its full history of experiments. Known trade-off: collapsing `orchestrator_test` into the Orchestrator's own behavior means this step is not independently swappable or scoped the way a true subagent would be -- it inherits whatever tool access and context the Orchestrator session has, rather than a narrower, purpose-built grant. Open risk: as the system grows, a currently-reasonable "fold into the Orchestrator" decision (like `orchestrator_test`'s) could become harder to justify if the Orchestrator's own responsibilities keep accumulating -- worth revisiting if the Orchestrator's own instructions grow substantially larger than they are today.
 
+## Open risks
+
+- As the Orchestrator's own responsibilities accumulate, folding steps into it (as with `orchestrator_test`) may become harder to justify.
+- With no tester agent, nothing does exploratory test design. At this scale the deterministic test step plus review covers it, and that trade-off is accepted.
+
 ## Evidence
 
 agents/reviewer_strict.md and agents/reviewer_lenient.md's own frontmatter (`"TEMPORARY, for Module 3 Lab calibration cycle only"`), git history showing their deletion and `reviewer`'s real implementation in the same commit (Module 4.1). ADR-001 (docs/adr/ADR-001-orchestrator-test-deterministic-conversion.md), confirming `orchestrator_test` was agentic judgment and not an independent role, now converted. CLAUDE.md, Orchestrator Instructions, "never trust its own summary as verification" -- the actual, standing reason a separate `tester` role was never necessary.
+
+## Later evidence (2026-10-16)
+
+This section was added after the Module 1 and Module 2 cost data was reviewed. The decision text above is unchanged.
+
+- **Rejected alternative: keeping two reviewers as the default.** A single `spring-boot-reviewer` run cost $0.56 to $0.58 (`module2_doc/iteration-log.md`, Runs 002 and 003). A second default reviewer pass would add roughly that amount to every task, on a task that costs about $0.50 to $0.80 in total (`docs/iteration-log.md`, Runs 005 and 006). The extra reviewer would also have to serve a purpose, and the temporary pair's only purpose (forcing a conflict to test the escalation policy) had been served.
