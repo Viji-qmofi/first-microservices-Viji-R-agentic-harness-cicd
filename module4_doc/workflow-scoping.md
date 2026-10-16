@@ -53,12 +53,36 @@ A real task run, start to finish, showing: the plan, an independent review catch
 
 ## Why a custom orchestrated pipeline, not simpler automation or a prebuilt agent
 
-A single-shot prebuilt coding agent (no planning/review split, no persistent memory, no governance layer) was considered and rejected implicitly through this project's own evolution: Module 1-2's early, simpler agent definitions were specifically found to need the plan/implement/review split once self-reports proved unreliable without independent verification (handbook, Module 1-2 sections: "an agent's own closing summary is a claim, not evidence"). A simpler CI linter or static-analysis-only tool was rejected because the actual, recurring failure modes observed in this project (scope drift, role-boundary violations, stale-evidence-treated-as-fact) are about *agentic judgment and process*, not static code properties a linter can catch.
+Three alternatives were weighed against this project's own evidence.
+
+**A single-shot prebuilt coding agent (no planning and review split, no persistent memory, no governance layer).** Rejected, with evidence from this project:
+- The agent's own closing summary is a claim, not evidence. In the Module 1 re-runs, the ungoverned control (governance removed) also reported "Warnings/errors: None" falsely (Control 2). A single agent has no independent check to catch that, and the human reviewer caught it only with an answer key (`module4_doc/module1-comparison.md`).
+- Nothing in an unrestricted agent stops a role from acting outside its job. The Orchestrator's `update_entry` call succeeded in a real run because nothing checked who was calling (`HO-06`, `.eval-artifacts/holdout-run-1/HO-06.log`, line 2). The scoped roles and server-side allow-lists exist because of that incident.
+- The price of the extra control is measured and small: governance cost about 32% more per run (about $0.12) and about 1 more minute (`module4_doc/module1-comparison.md`). This task does not show governance improving accuracy, and we do not claim it does. What it buys is blocked actions, an audit trail and a human checkpoint, which the red-team results show (`eval/red-team-results.md`).
+
+**Simpler automation (a CI step, a lint, a static-analysis tool, or a script).** Partly accepted, and this is the right-tool argument itself. Wherever a fixed rule is enough, this project uses one: the test-result check was converted to deterministic code (`ADR-001`, about 264x faster at zero token cost), the role checks are deterministic (`_authorize()`), and the CI gates are deterministic. A script cannot do the planning, implementing and independent review steps, which require judgment on open-ended input (`docs/step-classification.md` classifies each as not a conversion candidate). The recurring failures seen here, such as scope drift, role-boundary violations and stale records treated as fact, are about process and judgment, not static code properties a linter can catch. The Module 1 warning scan is itself a candidate for a fixed-rule script, and is recorded as one.
+
+**A human doing the work by hand.** This is the before-state: 45 minutes or more per check (estimate), against 2.5 minutes of review plus about 3.6 minutes of unattended agent time (measured).
 
 ## Baseline pain
 
 **No live team's pre-existing manual process exists for this specific project to measure against** -- this is a learning project, not an automation retrofit of an established team workflow. Two separate, clearly-labeled kinds of evidence are used instead of inventing a false "before" number:
 
+**The reviewer's own estimate for the Module 1 check.** Running the four builds, reading the logs and listing warnings and a recommendation by hand takes the reviewer 45 minutes or more. This is an estimate, not a timed figure, and it is a lower bound.
+
+**Measured with the pipeline** (`module4_doc/module1-comparison.md`, `docs/iteration-log.md`): agent cycle time 3m22s to 3m48s on the final system, one timed human review of about 2.5 minutes (n=1), and a cost of $0.35 to $0.81 per run across recorded runs.
+
 **Cited industry context** (external, not measured by this project): published industry data consistently shows code review and related coordination overhead consumes a substantial share of developer time -- Google's own internal engineering-productivity research reports developers spending an average of 6.4 hours per week on code review activities; separate industry surveys (SonarSource, Infragistics) report that routine coding itself is typically only 20-40% of a developer's working time, with the remainder spent on review, coordination, and verification overhead. These figures describe the general category of work this workflow addresses -- they are not claims about this specific project's own prior state.
 
 **Our own measured evidence** (real, from this project): the `orchestrator_test` conversion (`ADR-001`) measured a ~264x latency reduction and complete token-cost elimination for one concrete, high-frequency verification step, by replacing LLM narration with deterministic parsing -- real, repeatable numbers from `module3_doc/calibration-log.md`, not estimated. This is offered as direct evidence of what rigorous measurement *within* this system looks like, distinct from the external context above.
+
+## Projected value (assumptions stated, not measured)
+
+These figures are projections. The hourly rate and the volume are assumptions, since this project has no live team. The time figures come from the estimates and measurements above.
+
+- **Assumptions:** a loaded developer cost of $75 per hour, and 20 build checks per week.
+- **If every report passes:** about 42.5 minutes of human time saved per check, which is about 14 hours and about $1,060 per week, less about $10 of model cost.
+- **At the measured pass rate for the clarified prompts (1 in 3, n=3):** about 12.5 minutes saved per check, which is about 4 hours and about $310 per week. This figure assumes every failing report is caught at review and redone by hand.
+- **What neither figure covers:** a failing report that is not caught. Its cost is a wrong decision, not minutes, and the project has no dollar figure for it.
+
+The gap between the two projections is the reason reliability, not speed, is the main open problem for this task.
