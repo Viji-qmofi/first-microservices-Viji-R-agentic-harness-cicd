@@ -192,6 +192,24 @@ What to do when the pipeline misbehaves, looked up by symptom. Every entry is a 
 - **Evidence:** the two failures above; and PR #10 (run 38285828142), where an unusable base image failed three attempts and the job then built successfully from the mirror. That test used an invalid image name, so it exercised the retry and fallback logic, not a real rate limit, which cannot be triggered on demand.
 - **Status:** Exercised.
 
+### 22. The model API is unavailable (credit exhausted)
+- **Symptom:** the Evaluation Harness job fails within seconds at the rubric step, with an empty or unhelpful error. The advisory review says the API request failed.
+- **Usual cause:** the account behind the `ANTHROPIC_API_KEY` repository secret has no credit left. The key itself is valid.
+- **Caught by:** the rubric judge call failing. The gate failed closed: the Evaluation Harness stayed red and the pull request could not merge. The advisory review's artifact showed the real message, that the credit balance was too low.
+- **First response:** do not bypass the required check. Add credit in the Anthropic Console (Plans & Billing) for the organization that owns the key, then re-run all jobs, not only the failed one, so the advisory review also runs again. Never paste the key anywhere.
+- **Fix:** the judge error now includes the CLI's own message, and the gate says "infrastructure, not a regression" when the judge cannot run, while still failing closed (`3bbf9b5`, PR #14).
+- **Evidence:** PR #13, run 38561770445 (Evaluation Harness failed, 13 of 13 deterministic checks passed, rubric step failed in 2 seconds); the advisory-review artifact for that run.
+- **Status:** Exercised, by a real incident.
+
+### 23. A non-blocking check reports success while failing
+- **Symptom:** Advisory Code Review shows green, but its review step took about one second and the artifact contains an error, not a review.
+- **Usual cause:** the review script returned the API error as the review text and exited 0, and the job is advisory by design.
+- **Caught by:** noticing the one-second step, then reading `review-output.md` in the `advisory-review` artifact. A green check proved nothing here.
+- **First response:** read the artifact before trusting any advisory result. Fix the underlying cause (usually entry 22).
+- **Fix:** a failed review is now titled "NOT PERFORMED" and raises a visible warning annotation on the job. It stays non-blocking (`3bbf9b5`, PR #14).
+- **Evidence:** PR #13's advisory-review artifact, and the repaired behavior in `scripts/run-reviewer.py`.
+- **Status:** Exercised, by a real incident.
+
 ---
 
 ## Adding an entry
