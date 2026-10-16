@@ -9,7 +9,7 @@ Runtime files:
 - Database: `/memory/storage.db`
 - Audit log: `/memory/storage-audit.log`
 
-The server exposes five named operations. It does **not** expose raw SQL.
+The server exposes six named operations: `write_entry`, `read_entry`, `list_entries`, `update_entry`, `delete_entry` and `audit_read` (granted to the orchestrator only; returns the tail of the audit log). It does **not** expose raw SQL.
 
 ## Classification rules
 

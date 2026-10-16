@@ -19,9 +19,11 @@ flowchart TD
     F -->|valid| G[reviewer and/or<br/>spring-boot-reviewer:<br/>independent diff review]
     G --> H{Reviewer<br/>conflict?}
     H -->|yes, same section,<br/>contradictory verdicts| I[orchestrator_conflict_resolution:<br/>escalate to human,<br/>never self-resolve]
-    I --> CH2[Human: decide]
-    H -->|no conflict| CH2
-    CH2 --> J[Commit]
+    I --> CH3[Human: decide the conflict]
+    CH3 --> CH2
+    H -->|no conflict| CH2{Human: approve<br/>before every commit}
+    CH2 -->|approved| J[Commit]
+    CH2 -->|rejected| END3[Stop, report to human]
 
     K[decision-auditor: separate,<br/>on-demand invocation] -.->|checks .memory/project/<br/>records against real git state| L[(.memory/project/)]
 
@@ -38,7 +40,7 @@ flowchart TD
 - **Two distinct orchestrator review points**, not one generic "review" step: `orchestrator_plan_review` (before any code exists) and `orchestrator_diff_review` (after implementation, checking the actual diff against the approved scope). Each can send work back rather than proceeding.
 - **Human checkpoints have explicit trigger criteria**, not a blanket "ask every time": one fires specifically when a plan proposes an externally-visible behavior change; the unconditional one fires before every commit regardless of how the run went; a third fires only when two reviewers genuinely disagree on the same section (never self-resolved by the Orchestrator).
 - **`decision-auditor` is not part of the main plan-implement-review sequence.** It's a separately-invoked role, checking existing `.memory/project/` records against real git state on its own schedule, not a step every task passes through.
-- **The MCP boundary layer is cross-cutting, not a single step in the sequence.** Every tool call any role above makes -- `planner`'s `retrieve`, `implementer`'s `write_entry`, `decision-auditor`'s scoped file access -- passes through one of three MCP servers, each independently enforcing a deny-by-default allow-list keyed on the calling role (ADR-005). This is what actually stops an out-of-scope action, not the diagram's own sequencing.
+- **The MCP boundary layer is cross-cutting, not a single step in the sequence.** Every tool call any role above makes -- `planner`'s `retrieve`, `implementer`'s `write_entry`, `decision-auditor`'s scoped file access -- passes through one of three MCP servers, each independently enforcing a deny-by-default allow-list keyed on the calling role (ADR-005). This is what denies an out-of-scope action, not the diagram's own sequencing. The role on each call is self-declared and not verified, so these are server-side allow-lists against a declared role, not proof of caller identity (see the Known limitation in `docs/routing-and-tool-grant-map.md`).
 
 ## Implementing this from scratch
 

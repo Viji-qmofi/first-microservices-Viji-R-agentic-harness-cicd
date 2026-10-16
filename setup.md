@@ -143,6 +143,33 @@ HTTP 200
 - **Documented exception: routine agent sessions.** Claude Code is a client for the Anthropic API — it cannot function at all without reaching `api.anthropic.com`, regardless of what the underlying task needs. This isn't a task-specific exception — it's a tooling requirement of the agent runtime itself, so every Claude Code invocation runs on the default network, not `--network none`.
 - **No broader exception granted.** The default network is not scoped further (e.g., to an allowlist of `api.anthropic.com` + `repo.maven.apache.org`) yet — see Residual Risks below.
 
+## Secret-scanning pre-commit hook
+
+`scripts/hooks/pre-commit` blocks a commit when any staged file under `.memory/` contains a credential-shaped string: `sk-`, `password=`, `secret=`, `token=`, `api_key=` or `apikey=` (case-insensitive). It scans the staged content, which is what actually gets committed.
+
+Activate it once after cloning. `core.hooksPath` is local git configuration and does not travel with the repository, so a fresh clone is not protected until this runs:
+
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+Check that it works, then clean up:
+
+```bash
+echo "password=test123" > .memory/project/hook-test.txt
+git add .memory/project/hook-test.txt
+git commit -m "test: should be blocked"      # expect "Commit blocked" and exit code 1
+git reset HEAD .memory/project/hook-test.txt
+rm .memory/project/hook-test.txt
+```
+
+It was first built and verified blocking a real commit in Module 2, Exercise 2.4, in the original repository (commit `444e8b4`; `module2_doc/iteration-log.md`).
+
+Known limits:
+- It scans `.memory/` only, not the rest of the repository.
+- It is plain substring matching, so it can block a legitimate commit. It did once, on the word "Task-Resumption" (`module2_doc/iteration-log.md`). No file under `.memory/` matches today.
+- It is a local hook. It protects only clones that have run the command above, and nothing in CI checks that it is active.
+
 ## Security decisions
 
 - **Local services expected:** four independent Spring Boot apps (Eureka registry, API gateway, product-service, order-service). No database, no message broker, no other local service.

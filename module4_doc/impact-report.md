@@ -6,13 +6,22 @@ This system matured across four modules from an ungoverned, purely agentic pipel
 
 ## Measured impact
 
-**Module 1 baseline vs final system** (`module4_doc/module1-comparison.md`): the Module 1 Run 001 prompt was re-run on the final governed system (2 runs) and on two controls with `CLAUDE.md` and `.mcp.json` removed (2 runs), same model, fresh container each time.
-- Quality: the July baseline passed (3/4/3, Scope Pass). All four re-runs failed Warning and Error Coverage (final: 2 and 1; controls: 2 and 1), so the failures occur with and without governance. The likely cause is the task: the repo now emits intentional runtime WARN/ERROR lines, and a narrow grep for Maven markers misses them.
-- Defect rate (proxy: share of runs failing the rubric): 1 of 4 in Module 1, 4 of 4 on re-run under strict scoring.
-- Cycle time: baseline 2m46s, controls about 5m38s, final Run 2 6m38s. Governance adds roughly 1 minute; most of the rise from July is Maven on a larger test suite (order-service tests grew from 1 to 41).
-- Cost per run: baseline $0.3494, controls about $0.38 (+9%, workload), final Run 2 $0.50 (+32% over controls, governance context). Figures are API-equivalent estimates from a Pro session.
-- Review latency: the baseline's ~2 minutes was an estimate. One timed review of a re-run report took about 2.5 minutes (n=1, reviewer already knew the answer key), so there is no evidence governance changes review time.
-- Limits: small n, Final Run 1 timing unreliable (interrupted and resumed), repo changed since July so only control-to-final isolates governance.
+**Five-metric comparison against the Module 1 baseline** (`module4_doc/module1-comparison.md`, `docs/iteration-log.md`). The Module 1 task was re-run on the final governed system and on two ungoverned controls (`CLAUDE.md` and `.mcp.json` removed), same model, fresh container each time.
+
+| Metric | Baseline (Run 001, July 2026) | Final system (October 2026) | Reading |
+|---|---|---|---|
+| Quality (rubric scores) | 3 / 4 / 3, Scope Pass: passed | Original prompt: Warning Coverage 2 and 1, both failed. Clarified prompts: 2, 4, 2, one pass in three | Worse than baseline on this task, partly recovered by prompt changes. The same failures occur without governance. |
+| Review latency | about 2 min (estimate) | about 2.5 min (one timed review, n=1) | No evidence of change. Proxy: a single timed review, with the answer key in hand. |
+| Defect rate (proxy: share of runs failing the rubric) | 1 of 4 Module 1 runs | Original prompt: 4 of 4 failed (2 final, 2 controls). Clarified prompts: 2 of 3 failed | Not yet reliable. Direct defect counts are not available for a report-writing task, so run failure is the proxy. |
+| Cycle time | 2m 46s | 3m 22s to 3m 48s (clarified prompts). 6m 38s (original prompt, Final Run 2) | Slower. Most of the rise is Maven on a larger test suite (order-service tests 1 to 41), plus about 1 minute of governance overhead. Run-to-run variance is large. |
+| Cost per run | $0.3494 | Controls about $0.38. Final Run 2 $0.50. Clarified-prompt runs $0.38 to $0.81 | About +9% from the workload and +32% (about $0.12) from governance. API-equivalent estimates from a subscription session. |
+
+**Improvement cycles on this task** (`docs/iteration-log.md`, Runs 005 and 006 and the rerun):
+- Cycle 1: the prompt was changed to name runtime WARN/ERROR lines. Warning Coverage went from 1 to 2, and a separate scope failure surfaced (the agent ran `rm` and misreported it).
+- Cycle 2: JVM warnings were named and a /tmp-only rule was added. Run 006 passed at 3/4/3.
+- Rerun: the identical prompt scored 2 and failed, because it falsely reported "JVM warnings: None". The change did not hold reliably. A fixed-rule scan of the logs is recorded as the candidate fix and is not built.
+
+**Limits:** small n (one run per version), Final Run 1's timing is unreliable (interrupted and resumed), the repository changed since July (so only the control-to-final comparison isolates governance), and review latency has one observation.
 
 **`orchestrator_test` deterministic conversion** (`ADR-001`, `module3_doc/calibration-log.md`, 2026-09-25):
 - Latency: ~14s/run (agentic baseline, averaged over 3 runs) -> ~0.053s/run (deterministic, averaged over 3 runs) -- a ~264x reduction.
