@@ -110,6 +110,8 @@ Principle it illustrates: An instruction that asks for an "example" or "specific
 
 Scope: Applies to any agent whose output includes a "how to fix it," "example," or "recommendation" field — code review, config review, documentation review, or any advisory agent where the gap between "described" and "demonstrated" changes how usable the output actually is.
 
+Before/after rubric scores: Fix Example Quality scored 3 in Run 001 and 3 again in Run 002 (the gap confirmed twice), then 4 in Run 003 after the v2 change (`a740bd7`). Issue Detection and Severity Classification stayed at 4 in Run 003, so the change did not degrade the other dimensions. Rerun confirmation: Run 003 is the rerun, scored by checking the actual snippets. It has not been re-checked since, which this entry does not claim.
+
 ## Lesson Learned — 2026-07-31
 
 Source: Fix Example Quality verification in Run 003, where the agent's closing summary claimed "I included concrete code snippets for each fix" and this was initially about to be scored at face value before being independently checked. A near-identical situation occurred earlier in the Module 1 build-check task, where a run's "zero warnings" claim also went unverified until the raw evidence was checked.
@@ -121,6 +123,8 @@ What the fix was: Before scoring any rubric dimension based on a claimed behavio
 Principle it illustrates: A subagent's summary or recap is not verification, even when phrased confidently and even when it's describing behavior it was specifically instructed to produce. This applies most to any rubric dimension scored from a claim in the agent's own narration — "the agent said it did X" and "the agent's actual output shows X" are not the same evidence.
 
 Scope: Applies to every agent evaluation in this course, not just spring-boot-reviewer — any dimension scored from the agent's own summary, rather than its raw output, needs that raw output checked before the score is finalized.
+
+Before/after rubric scores: no agent score applies, because the change was to how scores are assigned, not to an agent definition. Evidence it held: Run 003's Fix Example Quality of 4 was assigned only after the raw snippets were read. The rule was applied again in the Module 1 comparison runs (October 2026), where Final Run 2's "Warnings/errors: None" was caught as false by checking it against the ground-truth answer key (`docs/iteration-log.md`, Runs 005 and 006).
 
 ## Run 004 -- 2026-08-10 -- Context Management Session (Order-Service Re-Triage)
 
