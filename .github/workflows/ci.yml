@@ -53,7 +53,7 @@ jobs:
   policy-gate:
     name: Policy Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 1
     needs: change-type-check
     steps:
       - uses: actions/checkout@v4

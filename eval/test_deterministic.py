@@ -39,7 +39,7 @@ MAX_DURATION_SECONDS = 900
 # cost has been measured consistently throughout this course via isolated
 # /status checks. Single-role runs have cost $0.30-$1.10; 2.00 covers a full
 # multi-role orchestrated run with headroom without being unbounded.
-MAX_COST_USD = 2.00
+MAX_COST_USD = 0.50
 SIMILARITY_FLOOR = 0.65
 
 # Always-forbidden storage/retrieval operations per role, taken from the denials in

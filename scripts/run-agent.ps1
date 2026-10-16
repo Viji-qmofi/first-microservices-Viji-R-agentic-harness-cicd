@@ -76,3 +76,4 @@ if ($ExtraArgs) {
 Write-Host "Launching '$Role': workspace=$WorkspaceMode"
 
 & docker $DockerArgs
+# throwaway enforcement test: touches a path that triggers the eval gate
