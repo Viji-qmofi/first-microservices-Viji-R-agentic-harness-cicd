@@ -18,7 +18,7 @@ The path of a normal task is:
 6. One or two reviewer agents review the diff independently.
 7. The human approves, and only then is the change committed.
 
-A seventh agent, `decision-auditor`, is not part of this path. It is invoked separately to check recorded project decisions against real git state.
+A fifth subagent, `decision-auditor`, is not part of this path. It is invoked separately to check recorded project decisions against real git state.
 
 ## 2. System at a glance
 
@@ -32,7 +32,7 @@ The pieces, from the outside in:
 - **Three memory layers** under `.memory/` (project, knowledge, reference) [CLAUDE.md, Memory Configuration]. Section 6 covers these.
 - **An evaluation harness** (deterministic checks plus a rubric-scored judge) and **a CI pipeline** that enforces policy and integrity on every pull request. Sections 6 to 8 cover these.
 
-The full flow, including every checkpoint and the MCP boundary layer, is in `docs/orchestration-diagram.md`. The diagram is the authoritative picture and is not duplicated here, so the two cannot drift apart. It will be embedded as an image in the PDF export.
+The full flow, including every checkpoint and the MCP boundary layer, is in `docs/orchestration-diagram.md`. `docs/orchestration-diagram.md` (Mermaid) is the source of record. Figure 1 in this document is a redrawn copy of it, split into three rows so the labels stay readable on a page.
 
 ## 3. Agent roles
 
