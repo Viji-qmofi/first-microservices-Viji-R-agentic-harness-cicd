@@ -62,7 +62,7 @@ What to do when the pipeline misbehaves, looked up by symptom. Every entry is a 
 - **Caught by:** the post-hoc `cost` and `latency` harness checks ($2.00 and 900 seconds, in `eval/test_deterministic.py`), and the live guards in `CLAUDE.md` (three plan revisions, $2.00 and 900 seconds per task, a 10-minute subagent stall).
 - **First response:** stop and ask the human whether to continue, scope down, or abandon.
 - **Evidence:** HO-06 failed both `latency` and `cost` in the calibration log.
-- **Status:** Partly exercised. The post-hoc checks have fired. The live guards are defined only and have never been triggered.
+- **Status:** Partly exercised. The post-hoc checks have fired, including in CI on a deliberately lowered budget: HO-02's real $0.95 cost against a $0.50 ceiling failed the Evaluation Harness (PR #24, run 38972843072). The live guards are defined only and have never been triggered.
 
 ---
 
@@ -209,6 +209,14 @@ What to do when the pipeline misbehaves, looked up by symptom. Every entry is a 
 - **Fix:** a failed review is now titled "NOT PERFORMED" and raises a visible warning annotation on the job. It stays non-blocking (`3bbf9b5`, PR #14).
 - **Evidence:** PR #13's advisory-review artifact, and the repaired behavior in `scripts/run-reviewer.py`.
 - **Status:** Exercised, by a real incident.
+
+### 24. A CI job exceeds its time limit
+- **Symptom:** a check shows "Cancelled after Nm", and the log ends with "The operation was canceled" in the middle of a step. Governed File Check, Evaluation Harness and Advisory Code Review show "Skipped".
+- **Usual cause:** the job ran past its `timeout-minutes` ceiling, for example a slow registry or a hung build. Those three jobs wait for the Policy Test Suite, so they are skipped when it does not finish.
+- **Caught by:** GitHub cancelling the job. The required check does not pass, so the pull request cannot merge. Pipeline Integrity Check and Audit Trail still run, because neither waits on it.
+- **First response:** find the step that was running. Re-run once if the cause looks like a slow registry or runner. If it recurs, raise the ceiling in `ci.yml` with a stated reason. Do not bypass the required check.
+- **Evidence:** PR #23, commit `396a618`, run 38971124589. The Policy Test Suite limit was set to 1 minute on a throwaway branch, and the job was cancelled during the container build after 1m 33s. The pull request was closed without merging.
+- **Status:** Exercised, by a deliberate test.
 
 ---
 
