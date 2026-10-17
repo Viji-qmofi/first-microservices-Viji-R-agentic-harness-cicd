@@ -146,7 +146,7 @@ The pipeline is `.github/workflows/ci.yml` [docs/ci-step-design.md]. A classifie
 
 Main requires a pull request and the four required checks. Every job has a hard timeout. Image builds retry three times and then fall back to a mirror of the base image.
 
-**Evidence of gating.** Weakening a gate on a throwaway pull request turned the required Pipeline Integrity Check red (PR #9), and the base-image fallback was exercised with a simulated failure (PR #10). On a real pull request the Evaluation Harness failed closed when the model API's credit balance ran out, and stayed red until credit was added. That incident also exposed that the advisory review had reported success while failing, which was then fixed.
+**Evidence of gating.** Weakening a gate on a throwaway pull request turned the required Pipeline Integrity Check red (PR #9), and the base-image fallback was exercised with a simulated failure (PR #10). On a real pull request the Evaluation Harness failed closed when the model API's credit balance ran out, and stayed red until credit was added. That incident also exposed that the advisory review had reported success while failing, which was then fixed. Two deliberate tests on throwaway pull requests, closed without merging, exercised the controls: with the Policy Test Suite limit set to 1 minute, GitHub cancelled the job mid-build and the dependent checks were skipped (PR #23, run 38971124589); with the cost budget lowered to $0.50, HO-02's real $0.95 cost failed the required Evaluation Harness while every other check passed (PR #24, run 38972843072).
 
 ## 9. Decisions and open risks
 
@@ -165,7 +165,7 @@ Main requires a pull request and the four required checks. Every job has a hard 
 - CI sets no explicit `permissions:` block, so jobs use the repository's default token permissions.
 - The integrity checker can be edited by the same pull request it checks, so that pull request needs human review.
 - The Evaluation Harness replays a frozen transcript, so it does not test the effect of a changed prompt.
-- The $2.00 and 900-second budgets and the three-revision limit are written instructions to the Orchestrator and are checked after the fact by the harness. They have not been shown firing live.
+- The $2.00 and 900-second budgets and the three-revision limit are written instructions to the Orchestrator for live runs. The after-the-fact budget check has fired, in CI on a deliberately lowered ceiling (PR #24), but the live guards have not been shown stopping a real run.
 - The image-build fallback has been exercised only with a simulated failure.
 - If the test-result script itself crashes or is missing, the documented behavior is undefined (only `valid: false` is covered).
 - The Module 1 prompt fix is inconsistent (3 runs), and review latency has one timed observation. Section 6 of `module4_doc/module1-comparison.md` explains both.

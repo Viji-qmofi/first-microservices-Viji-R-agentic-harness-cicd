@@ -266,3 +266,24 @@ Trigger: Docker Hub rate-limiting broke CI builds, and the CI audit record's `ch
 - The fallback has only been exercised with a simulated failure, not a real 429.
 - The integrity checker and workflow files are not in the filters that trigger the governed gate (see Known gaps in `docs/ci-step-design.md`).
 - CI jobs still have no `timeout-minutes` and no explicit `permissions:` block (same list).
+
+## Entry: Enforcement demonstration, job timeout and cost budget (2026-10-16)
+
+Trigger: review feedback that timeouts, retries and budgets were described but never shown enforcing anything. This entry supersedes the 2026-10-12 entry's note that CI jobs have no `timeout-minutes`, which was fixed in `3bbf9b5` (PR #14).
+
+### Findings
+
+1. **The timeout is enforced.** With the Policy Test Suite limit set to 1 minute on a throwaway branch, GitHub cancelled the job after 1m 33s, in the middle of the container build ("The operation was canceled"). The required check did not pass.
+2. **A cancelled Policy Test Suite skips three other checks.** Governed File Check, Evaluation Harness and Advisory Code Review wait for it, so they were skipped. Pipeline Integrity Check and Audit Trail still ran. The first version of the test combined both edits, so the cost check never ran; it was repeated on its own.
+3. **The cost budget check fires.** With the budget lowered to $0.50, the replay of HO-02 failed `cost` (`cost $0.95 is missing or over the $0.5 budget`), 12 of 13 deterministic checks passed, and the required Evaluation Harness failed. Policy Test Suite, Governed File Check, Pipeline Integrity Check, Advisory Code Review and Audit Trail all passed, which isolates the failure to the cost check. The rubric step did not run, so no model spend.
+
+### Verification (deliberate tests on throwaway pull requests, closed without merging)
+
+- **PR #23, commit `396a618`, run 38971124589:** timeout set to 1 minute; Policy Test Suite cancelled.
+- **PR #24, run 38972843072:** `MAX_COST_USD` lowered from 2.00 to 0.50 in `eval/test_deterministic.py`; Evaluation Harness failed on `cost`.
+
+### Limits and open items
+
+- The budget demonstration uses a lowered ceiling against a real, recorded cost. It shows the check fires when the ceiling is exceeded, not that a live overspend was stopped.
+- The live guards in `CLAUDE.md` (three plan revisions, $2.00 and 900 seconds per task, a 10-minute subagent stall) are still defined only.
+- During the second test, `scripts/run-agent.ps1` was touched in the belief that `eval/` changes would not trigger the Evaluation Harness. That belief was wrong: one classifier filter sets both flags and includes `eval/`. No gap was found.

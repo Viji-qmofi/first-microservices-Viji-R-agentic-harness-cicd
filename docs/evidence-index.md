@@ -16,7 +16,7 @@ Where each requirement of the capstone brief is met in this repository. Each lin
 - **Module 4: agent-vs-deterministic-vs-human decision matrix:** docs/step-classification.md
 - **Module 4: deterministic conversion and ADR:** scripts/parse_test_result_deterministic.py; docs/adr/ADR-001-orchestrator-test-deterministic-conversion.md
 - **ADRs for rubric design, memory layout, MCP boundaries, subagent routing, governance and the conversion:** docs/adr/
-- **Production-like integration with reliability and cost controls, incident runbook:** CLAUDE.md; docs/runbook.md; .eval-artifacts/holdout-run-1/
+- **Production-like integration with reliability and cost controls, incident runbook:** CLAUDE.md; docs/runbook.md; .eval-artifacts/holdout-run-1/; enforcement demonstrations on throwaway pull requests PR #23 (job timeout, run 38971124589) and PR #24 (cost budget, run 38972843072), both closed without merging
 - **Tool-evolution drill:** module4_doc/tool-evolution-drill.md
 - **Impact report against the Module 1 baseline, five metrics with proxies:** module4_doc/impact-report.md; module4_doc/module1-comparison.md
 - **Escalation and rollback criteria:** module4_doc/escalation-and-rollback-criteria.md; docs/runbook.md
@@ -32,4 +32,3 @@ Where each requirement of the capstone brief is met in this repository. Each lin
 - Rubric self-check PDF
 - Sanitization note (optional)
 - Fresh-clone 15-minute stranger test
-- A demonstration of a timeout and a cost budget firing (planned throwaway pull request)

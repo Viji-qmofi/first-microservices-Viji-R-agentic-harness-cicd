@@ -38,6 +38,7 @@ For the operator of this system: how to start it, what to watch, what to do when
 - **The image will not pull, `429 Too Many Requests`** (21). Re-run the job later. The build already retries and falls back to a mirror. Do not bypass a required check.
 - **The model API credit runs out** (22). Add credit in the Anthropic Console, then re-run all jobs. Do not bypass the required check.
 - **The advisory review is green but contains an error** (23). Read the artifact. Fix the cause, usually the entry above.
+- **A CI job is cancelled at its time limit** (24). Find the step that was running. Re-run once if the cause is a slow registry or runner. If it recurs, raise the ceiling in `ci.yml` with a stated reason. Do not bypass a required check. Note that a cancelled Policy Test Suite also skips Governed File Check, Evaluation Harness and Advisory Code Review.
 - **Cost or time runs over, or a subagent does not return** (6). Stop and ask: continue, scope down, or abandon.
 
 ## 4. When to stop and escalate
@@ -67,10 +68,10 @@ Details: [`module4_doc/escalation-and-rollback-criteria.md`](../module4_doc/esca
 
 ## 6. Reliability and cost controls, and their honest status
 
-- **Job timeouts.** Configured on all seven CI jobs (`timeout-minutes`). Not yet seen cancelling a job.
+- **Job timeouts.** Configured on all seven CI jobs (`timeout-minutes`). Exercised on a throwaway pull request: with the Policy Test Suite limit set to 1 minute, GitHub cancelled the job mid-build (PR #23, run 38971124589). The limits are fixed ceilings, not tuned to measured run times.
 - **Build retry and mirror fallback.** Three attempts, then the AWS ECR Public mirror. Exercised on a throwaway PR with a simulated failure (PR #10). A real registry rate limit cannot be triggered on demand.
 - **Fail closed.** Exercised by a real incident: the Evaluation Harness stayed red when the API credit ran out (playbook 22).
-- **Per-task budget ($2.00, 900 seconds).** The after-the-fact check in the evaluation harness has fired (HO-06). The live guard in `CLAUDE.md` is defined only.
+- **Per-task budget ($2.00, 900 seconds).** The after-the-fact check in the evaluation harness has fired on a real run (HO-06). It also fired in CI on a deliberately lowered ceiling: HO-02's real cost of $0.95 against a $0.50 budget failed the required Evaluation Harness (PR #24, run 38972843072). The live guard in `CLAUDE.md` is defined only.
 - **Plan-revision limit (three) and subagent stall (10 minutes).** Defined only.
 - **MCP server unreachable.** Exercised: the Orchestrator halted and offered only "start and restart" or "abandon" (playbook 11).
 

@@ -114,6 +114,7 @@ A review of what each gate actually did, recorded in the CI-gates entry of `modu
 
 ## Known gaps
 
-- Timeouts were added after the first draft of this document, which had listed their absence as a gap. A hung job is now cancelled at its limit. These are fixed ceilings, not tuned to measured run times.
+- Timeouts were added after the first draft of this document, which had listed their absence as a gap. A hung job is now cancelled at its limit, shown on a throwaway pull request (PR #23, run 38971124589). These are fixed ceilings, not tuned to measured run times.
+- When the Policy Test Suite fails or is cancelled, Governed File Check, Evaluation Harness and Advisory Code Review are skipped, because they wait for it. Pipeline Integrity Check and Audit Trail still run (observed on PR #23).
 - The workflow has no explicit `permissions:` block, so jobs use the repository's default token permissions instead of a stated least-privilege set.
 - The integrity checker and the workflow files are not in the filters that trigger the governed gate, so a change that shrinks the checker's protected set is caught by no test (identified 2026-10-12).
