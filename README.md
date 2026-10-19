@@ -4,9 +4,22 @@ A Spring Boot microservices e-commerce application, developed and maintained by 
 
 ## Quick Start
 
+1. **Get the code.** Fork this repository on GitHub (the Fork button), then clone your fork. Or clone this one directly:
+
+```bash
+git clone https://github.com/Viji-qmofi/first-microservices-Viji-R-agentic-harness-cicd.git
+cd first-microservices-Viji-R-agentic-harness-cicd
+```
+
+If you forked, read the short "If you forked this repository" section in `setup.md` first: GitHub Actions and branch protection do not carry over to a fork.
+
+2. **Build the image.** The first build downloads Maven, Node and Python dependencies and takes several minutes. Later builds use the cache.
+
 ```bash
 docker build -t ecom-agent-sandbox .
 ```
+
+3. **Run the container.** The command below is Windows Command Prompt syntax (`%cd%`). On macOS, Linux or Git Bash, use `$(pwd)` instead of `%cd%`, `/` instead of `\` in the knowledge mount, and do not mix the two styles in one command.
 
 ```cmd
 docker run -it --rm --cap-drop=DAC_OVERRIDE -p 8001:8001 -p 8002:8002 -p 6274:6274 -p 6277:6277 -v "%cd%:/workspace" -v "%cd%\.memory\knowledge:/workspace/.memory/knowledge:ro" -v "claude-auth:/claude-auth" -e ANTHROPIC_API_KEY -e COURSETOOLS_ROOT=/workspace -e STORAGE_DB_PATH=/workspace/.memory/storage/storage.db -e STORAGE_AUDIT_PATH=/workspace/.memory/storage/storage-audit.log -e RETRIEVAL_AUDIT_PATH=/workspace/.memory/storage/retrieval-audit.log -e RETRIEVAL_REFERENCE_DIR=/workspace/.memory/reference ecom-agent-sandbox
@@ -23,6 +36,14 @@ claude mcp add --scope project --transport http retrieval http://localhost:8002/
 ```
 
 `coursetools` (stdio transport) registers automatically each session. Then run `claude` and log in (`/login`) the first time -- see below.
+
+4. **Check that it worked.** In `claude`, `/mcp` should list `storage`, `retrieval` and `coursetools` as connected. Then, in the container, run the policy tests:
+
+```bash
+python3 -m pytest eval/test_policy.py eval/test_governed_files.py -q
+```
+
+All of them should pass (19 at the time of writing).
 
 ### Two separate credentials -- don't conflate them
 
