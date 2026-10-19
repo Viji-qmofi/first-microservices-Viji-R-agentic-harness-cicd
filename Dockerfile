@@ -39,6 +39,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 # import (FastMCP renamed to MCPServer in mcp 2.x). Module 4.2-specific packages
 # (aiosqlite, chromadb, scikit-learn, rank-bm25) are deferred -- add them when
 # that lesson actually requires them, not before.
+# CPU-only PyTorch first. sentence-transformers would otherwise pull the default
+# CUDA build (several GB of NVIDIA libraries this project never uses), which made
+# the first image build take 13.2 minutes on a home connection (measured 2026-10-19).
+RUN pip3 install --no-cache-dir --break-system-packages torch --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
