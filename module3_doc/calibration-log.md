@@ -287,3 +287,24 @@ Trigger: review feedback that timeouts, retries and budgets were described but n
 - The budget demonstration uses a lowered ceiling against a real, recorded cost. It shows the check fires when the ceiling is exceeded, not that a live overspend was stopped.
 - The live guards in `CLAUDE.md` (three plan revisions, $2.00 and 900 seconds per task, a 10-minute subagent stall) are still defined only.
 - During the second test, `scripts/run-agent.ps1` was touched in the belief that `eval/` changes would not trigger the Evaluation Harness. That belief was wrong: one classifier filter sets both flags and includes `eval/`. No gap was found.
+
+## Entry: Fresh-clone build time (2026-10-19)
+
+Trigger: the capstone brief asks that a stranger can fork and run the repository from the README in 15 minutes. The README had never been tested that way, and its Quick Start began at `docker build`, with no clone step.
+
+### Findings
+
+1. **The README path works end to end on a fresh clone.** From a new clone, a `--no-cache` build, and a fresh login volume: `tools connected, a cited retrieval result, and 19 passed in the policy and governed-file tests.
+2. **It was too slow, and one phase caused it.** Clone 5 s, image build 13.2 minutes, container start 8 s, MCP servers 12 s, login and `/mcp` 1 minute: about 14.6 minutes to connected tools, with the build 90% of it.
+3. **The cause was an unused dependency.** `sentence-transformers` installs the default PyTorch with several GB of NVIDIA CUDA libraries. The project runs a small embedding model on CPU only.
+4. **The README itself was missing the first step.** It had no clone or fork command.
+
+### Change and verification
+
+- `Dockerfile` installs CPU-only PyTorch before the other Python requirements (5 lines). The README Quick Start now begins with the clone step and ends with a check.
+- Rebuilt from a fresh clone of the branch: **288.5 s (4.8 minutes), down from 13.2 minutes** (about 2.7 times faster, 8.4 minutes saved). The same three checks passed, with 19 passed in the tests.
+- About 6.2 minutes to connected tools and about 7 minutes with the checks, from the phase times.
+
+### Limits
+
+One machine and one run per version. The phases after the build were not re-timed separately after the fix. Build time depends on the network. Only Windows with Command Prompt was tested.

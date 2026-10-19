@@ -13,7 +13,7 @@ cd first-microservices-Viji-R-agentic-harness-cicd
 
 If you forked, read the short "If you forked this repository" section in `setup.md` first: GitHub Actions and branch protection do not carry over to a fork.
 
-2. **Build the image.** The first build downloads Maven, Node and Python dependencies and takes several minutes. Later builds use the cache.
+2. **Build the image.** The first build downloads Maven, Node and Python dependencies. It took about 5 minutes on a home connection when last measured (see "Fresh-clone test" in `setup.md`). Later builds use the cache.
 
 ```bash
 docker build -t ecom-agent-sandbox .

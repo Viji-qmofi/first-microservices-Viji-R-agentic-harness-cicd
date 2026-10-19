@@ -96,6 +96,25 @@ author (Viji R).
 - `agent-summary.md` (71 lines) appeared in the repo root on the host after exiting the container — confirms `/workspace` writes persist.
 - Inside the container, `/workspace` showed only the four `ecom-*` service folders plus `README.md`; the host home directory was not visible — confirms the mount boundary held.
 
+## Fresh-clone test
+
+On 2026-10-19 the README path was run from a new clone, as a stranger would run it: a Windows machine with Docker Desktop, Command Prompt, a `--no-cache` image build, and a fresh login volume.
+
+| Phase | Before the fix | After the fix |
+|---|---|---|
+| Clone | 5 s | 5 s |
+| Image build (`--no-cache`) | 13.2 min | 4.8 min (288.5 s) |
+| Container start | 8 s | about the same |
+| Start and register MCP servers | 12 s | about the same |
+| Log in and check `/mcp` | 1 min | about the same |
+| **To connected tools** | **about 14.6 min** | **about 6.2 min** |
+
+Both runs passed the same checks: `/mcp` listed all three servers, a retrieval question returned a cited result (`source_document` and `chunk_index`, similarity 0.703 by vector), and the policy tests gave 19 passed.
+
+**Cause and fix.** `sentence-transformers` pulled the default PyTorch build with several GB of NVIDIA CUDA libraries, which this project never uses, so 90% of the first run was the image build. The Dockerfile now installs CPU-only PyTorch first. The build fell from 13.2 to 4.8 minutes, about 2.7 times faster. With the checks, the whole path is about 7 minutes.
+
+**Limits.** One machine and one run per version. The phases after the build were not re-timed separately after the fix. Build time depends on the network. Only Windows with Command Prompt was tested, and macOS and Linux were not.
+
 ## Parallel-session isolation
 
 Concurrent agent sessions are kept apart in three ways:

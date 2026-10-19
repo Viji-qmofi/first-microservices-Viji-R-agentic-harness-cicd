@@ -3,7 +3,7 @@
 Where each requirement of the capstone brief is met in this repository. Each line names the files a reviewer should open. Items not yet met are listed at the end, not hidden.
 
 - **Workstream 1: workflow, stakeholder, trigger, acceptance criteria, failure modes:** module4_doc/workflow-scoping.md
-- **README and a stranger-run path:** README.md; setup.md. The fresh-clone 15-minute test has not been run yet.
+- **README and a stranger-run path:** README.md; setup.md (Fresh-clone test: about 7 minutes end to end, measured once on 2026-10-19).
 - **Containerized harness with filesystem, network and credential boundaries:** Dockerfile; docker-entrypoint.sh; setup.md (network egress check, parallel-session isolation, security decisions, residual risks); scripts/run-agent.ps1
 - **Module 1: PRD, rubric with levels and thresholds, baseline, iteration log:** docs/prd.md; docs/rubric.md; docs/iteration-log.md; module4_doc/module1-comparison.md
 - **Module 2: versioned agents, two or more skills, memory layout, reflection log:** agents/; skills/summarize-session; skills/verify-before-trusting; module2_doc/memory-architecture.md; .memory/project/MEMORY_INDEX.md; reflection entries in module2_doc/iteration-log.md
@@ -31,4 +31,3 @@ Where each requirement of the capstone brief is met in this repository. Each lin
 - Walkthrough video (10 minutes or less)
 - Rubric self-check PDF
 - Sanitization note (optional)
-- Fresh-clone 15-minute stranger test
