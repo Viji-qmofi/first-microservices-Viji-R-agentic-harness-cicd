@@ -6,7 +6,7 @@ Where each requirement of the capstone brief is met in this repository. Each lin
 - **README and a stranger-run path:** README.md; setup.md (Fresh-clone test: about 7 minutes end to end, measured once on 2026-10-19).
 - **Containerized harness with filesystem, network and credential boundaries:** Dockerfile; docker-entrypoint.sh; setup.md (network egress check, parallel-session isolation, security decisions, residual risks); scripts/run-agent.ps1
 - **Module 1: PRD, rubric with levels and thresholds, baseline, iteration log:** docs/prd.md; docs/rubric.md; docs/iteration-log.md; module4_doc/module1-comparison.md
-- **Module 2: versioned agents, two or more skills, memory layout, reflection log:** agents/; skills/summarize-session; skills/verify-before-trusting; module2_doc/memory-architecture.md; .memory/project/MEMORY_INDEX.md; reflection entries in module2_doc/iteration-log.md
+- **Module 2: versioned agents, two or more skills, memory layout, reflection log:** agents/; skills/summarize-session; skills/verify-before-trusting; module2_doc/memory-architecture.md; .memory/project/MEMORY_INDEX.md; docs/reflection-log.md; reflection entries in module2_doc/iteration-log.md
 - **Module 3: orchestration diagram, routing-and-tool-grant map:** docs/orchestration-diagram.md; docs/orchestration-diagram.png; docs/routing-and-tool-grant-map.md
 - **Module 3: MCP storage and vector retrieval with schemas, classification tags, citations:** mcp-servers/storage; mcp-servers/retrieval; module3_doc/retrieval-ground-truth.md; module3_doc/retrieval-quality-report.md
 - **Module 3: evaluation harness, holdout set, calibration log, run evidence:** eval/; module3_doc/holdout-task-set.md; module3_doc/calibration-log.md; .eval-artifacts/holdout-run-1/ (HO-01 to HO-06); .eval-artifacts/runs/
@@ -25,9 +25,8 @@ Where each requirement of the capstone brief is met in this repository. Each lin
 - **Architecture write-up:** docs/architecture.md
 - **Auditability of agent actions, tool calls, approvals and failures:** docs/audit-log-template.md; the storage and retrieval audit logs in .memory/storage/ (written at runtime, git-ignored); the audit-trail artifact of each CI run; transcripts in .eval-artifacts/
 
-## Not yet complete
+## Submission
 
-- Stakeholder one-pager PDF
-- Walkthrough video (10 minutes or less)
-- Rubric self-check PDF
-- Sanitization note (optional)
+- **Walkthrough video (9:54):** https://drive.google.com/file/d/1zrpYMaOQR5W7ymwmuKoZ_Q6JBvt68mtL/view?usp=sharing
+- **The seven PDFs:** [`submission/`](../submission/): architecture write-up, impact report with the tool-evolution drill, stakeholder one-pager, ops runbook, ADR package, rubric self-check, sanitization note.
+- **Known gaps:** listed in section 9 of [`architecture.md`](architecture.md) and in the rubric self-check.

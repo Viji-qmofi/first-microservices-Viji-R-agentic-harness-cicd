@@ -45,7 +45,7 @@ A real task run, start to finish, showing: the plan, an independent review catch
 
 ## Delivery path
 
-**Job-seeker / no-deployment path.** The pipeline runs on a representative workload: the four-service Spring Boot e-commerce application built in this course (`ecom-*`), taken through real engineering tasks against it (validation, retry logic, test coverage, endpoints). No internal, customer, or production data is used, so no approvals were required.
+**Job-seeker / no-deployment path.** The pipeline runs on a representative workload: the four-service Spring Boot e-commerce application built in this course (`ecom-*`), taken through real engineering tasks against it (validation, retry logic, test coverage, endpoints). The orchestrated roles (planner and implementer) are scoped to its order service, and the Module 1 build check covers all four services. No internal, customer, or production data is used, so no approvals were required.
 
 **Constraints, stated honestly.** There is no live team and no real ticket queue, so there is no pre-existing manual process to baseline against (see "Baseline pain" below). The human checkpoint is a single developer, not a reviewer pool. Run volume is small, dozens of runs rather than thousands, and cost and latency figures come from single-developer sessions.
 

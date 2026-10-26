@@ -308,3 +308,21 @@ Trigger: the capstone brief asks that a stranger can fork and run the repository
 ### Limits
 
 One machine and one run per version. The phases after the build were not re-timed separately after the fix. Build time depends on the network. Only Windows with Command Prompt was tested.
+
+## Entry: Role scope narrower than the documents claimed (October 2026)
+
+Trigger: a pre-recording rehearsal gave the Orchestrator a task in `ecom-product-service`.
+
+### Finding
+
+1. **The Orchestrator caught a scope mismatch before delegating.** It read `agents/planner.md` and `agents/implementer.md`, saw that both are written for `ecom-order-service` (`planner.md` line 22; the `implementer` description), and stopped. It offered two options: run the roles anyway while noting the deviation, or halt as a blocker. It did not redirect them itself.
+2. **Our documents described the system more broadly than the roles allow.** They said the pipeline works on "a four-service application". That is true for the Module 1 build check, which covers all four services. It is not true for the orchestrated plan, implement, verify and review path, which is scoped to the order service.
+
+### Change
+
+- The task was rescoped to the order service (a 201 Created status for a successful order), and the documents were reworded: `docs/architecture.md`, `module4_doc/workflow-scoping.md` and the README now state the scope, and `architecture.md` lists it as an open risk.
+- The agent files were not changed. Widening the roles is a next step.
+
+### Limits
+
+Observed once, in rehearsal. The session was not saved as a transcript, so there is no log file for it.

@@ -218,6 +218,15 @@ What to do when the pipeline misbehaves, looked up by symptom. Every entry is a 
 - **Evidence:** PR #23, commit `396a618`, run 38971124589. The Policy Test Suite limit was set to 1 minute on a throwaway branch, and the job was cancelled during the container build after 1m 33s. The pull request was closed without merging.
 - **Status:** Exercised, by a deliberate test.
 
+### 25. A role is invoked outside its written scope
+- **Symptom:** a task names a service the role's definition does not cover, for example a product-service task for roles written for `ecom-order-service`.
+- **Usual cause:** the `planner` and `implementer` definitions are scoped to one service.
+- **Caught by:** the Orchestrator, before delegating. It read the agent files, reported the mismatch and offered two options, run anyway with the deviation noted, or halt. It did not redirect the roles on its own.
+- **First response:** halt. Rescope the task to the service the roles cover, or add scoped definitions for the new service. Do not run a role off-definition to save time.
+- **Fix:** the documents now state the scope: the build check covers all four services, and the orchestrated roles are scoped to the order service.
+- **Evidence:** observed once in a pre-recording rehearsal, October 2026. The session was not saved as a transcript. The scoping text is in `agents/planner.md` and `agents/implementer.md`.
+- **Status:** Exercised once, informally.
+
 ---
 
 ## Adding an entry
