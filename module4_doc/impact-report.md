@@ -14,7 +14,9 @@ This system matured across four modules from an ungoverned, purely agentic pipel
 | Review latency | about 2 min (estimate) | about 2.5 min (one timed review, n=1) | No evidence of change. Proxy: a single timed review, with the answer key in hand. |
 | Defect rate (proxy: share of runs failing the rubric) | 1 of 4 Module 1 runs | Original prompt: 4 of 4 failed (2 final, 2 controls). Clarified prompts: 2 of 3 failed | Not yet reliable. Direct defect counts are not available for a report-writing task, so run failure is the proxy. |
 | Cycle time | 2m 46s | 3m 22s to 3m 48s (clarified prompts). 6m 38s (original prompt, Final Run 2) | Slower. Most of the rise is Maven on a larger test suite (order-service tests 1 to 41), plus about 1 minute of governance overhead. Run-to-run variance is large. |
-| Cost per run | $0.3494 | Controls about $0.38. Final Run 2 $0.50. Clarified-prompt runs $0.38 to $0.81 | About +9% from the workload and +32% (about $0.12) from governance. API-equivalent estimates from a subscription session. |
+| Cost per build check | $0.3494 | Controls about $0.38. Final Run 2 $0.50. Clarified-prompt runs $0.38 to $0.81 | About +9% from the workload and +32% (about $0.12) from governance. API-equivalent estimates from a subscription session. |
+
+**Cost of orchestrated code changes (a different workload).** The cost row above is the Module 1 build-check task. Across the 7 recorded orchestrated runs in `.eval-artifacts/` that report a cost, a run costs $0.24 to $1.42, against a per-task limit of $2.00 (four of the seven were over $1). The live demonstration in the walkthrough video, an order-service change that passed, cost $1.76 per `/usage`, the highest observed and still under the limit. It was not saved as a transcript, so it is not counted in the range. Figures are API-equivalent estimates.
 
 **Improvement cycles on this task** (`docs/iteration-log.md`, Runs 005 and 006 and the rerun):
 - Cycle 1: the prompt was changed to name runtime WARN/ERROR lines. Warning Coverage went from 1 to 2, and a separate scope failure surfaced (the agent ran `rm` and misreported it).

@@ -6,7 +6,7 @@ Every statement below is taken from a file in this repo, cited in brackets. Wher
 
 ## 1. Purpose and workflow
 
-This system helps one developer turn a ticket into a reviewed, tested code change on a real Spring Boot microservices project (four services: eureka registry, API gateway, product service, order service). The developer stays in control: an Orchestrator splits the work among specialist agents, checks each result itself instead of trusting the agent's own summary, and stops for a human decision before anything is committed [CLAUDE.md, Orchestrator Instructions].
+This system helps one developer turn a ticket into a reviewed, tested code change on a real Spring Boot microservices project (four services: eureka registry, API gateway, product service, order service). The Module 1 build check covers all four services. The planner and implementer are written for one of them, the order service, so orchestrated code changes are scoped there. The developer stays in control: an Orchestrator splits the work among specialist agents, checks each result itself instead of trusting the agent's own summary, and stops for a human decision before anything is committed [CLAUDE.md, Orchestrator Instructions].
 
 The path of a normal task is:
 
@@ -170,11 +170,12 @@ Main requires a pull request and the four required checks. Every job has a hard 
 - If the test-result script itself crashes or is missing, the documented behavior is undefined (only `valid: false` is covered).
 - The Module 1 prompt fix is inconsistent (3 runs), and review latency has one timed observation. Section 6 of `module4_doc/module1-comparison.md` explains both.
 - The secret-scanning hook covers `.memory/` only, and protects only clones that have activated it. Nothing in CI checks that it is active.
+- The `planner` and `implementer` definitions are written for `ecom-order-service`. A task in another service needs new scoped definitions. In a rehearsal the Orchestrator refused to run them on the product service and asked first.
 - Only a Windows launcher exists for the container.
 
 ## What this document does not claim
 
-- No production deployment, no live team, and no customer data. The workload is a representative four-service application.
+- No production deployment, no live team, and no customer data. The workload is a representative four-service application, and the orchestrated roles are scoped to its order service.
 - Governance did not improve accuracy on the Module 1 build-check task. Its value is in blocked actions, audit and human approval, not in that score.
 - The role boundaries are policy enforced against declared roles, not proof of caller identity.
 - Network egress is restricted by default with a documented exception for sessions that call the model. It is not claimed airtight.
